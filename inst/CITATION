@@ -1,0 +1,21 @@
+citHeader("To cite dynamite in publications use:")
+
+bibentry(
+  key = "dynamite",
+  bibtype  = "Manual",
+  title    = "Bayesian Modeling and Causal Inference for Multivariate
+    Longitudinal Data",
+  author   = "Santtu Tikka and Jouni Helske",
+  note  = "R package version 1.0.0",
+  year     = "2022",
+  url      = "https://github.com/ropensci/dynamite"
+)
+bibentry(
+  key = "dynamitepaper",
+  bibtype  = "Misc",
+  title    = "Estimating Causal Effects from Panel Data with Dynamic Multivariate Panel Models",
+  author   = "Jouni Helske and Santtu Tikka",
+  publisher = "SocArxiv",
+  year     = "2022",
+  url      = "https://osf.io/preprints/socarxiv/mdwu5/"
+)
