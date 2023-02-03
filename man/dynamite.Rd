@@ -10,12 +10,13 @@
 dynamite(
   dformula,
   data,
-  group = NULL,
   time,
+  group = NULL,
   priors = NULL,
-  verbose = TRUE,
-  debug = NULL,
   backend = "rstan",
+  verbose = TRUE,
+  verbose_stan = FALSE,
+  debug = NULL,
   ...
 )
 
@@ -38,6 +39,11 @@ values which will simply be ignored in the estimation in a case-wise
 fashion (per time-point and per channel). Input \code{data} is converted to
 channel specific matrix representations via \code{\link[stats:model.matrix]{stats::model.matrix.lm()}}.}
 
+\item{time}{[\code{character(1)}]\cr A column name of \code{data} that denotes the
+time index of observations. If this variable is a factor, the integer
+representation of its levels are used internally for defining the time
+indexing.}
+
 \item{group}{[\code{character(1)}]\cr A column name of \code{data} that denotes the
 unique groups or \code{NULL} corresponding to a scenario without any groups.
 If \code{group} is \code{NULL}, a new column \code{.group} is created with constant
@@ -45,16 +51,20 @@ value \code{1L} is created indicating that all observations belong to the same
 group. In case of name conflicts with \code{data}, see the \code{group_var} element
 of the return object to get the column name of the new variable.}
 
-\item{time}{[\code{character(1)}]\cr A column name of \code{data} that denotes the
-time index of observations. If this variable is a factor, the integer
-representation of its levels are used internally for defining the time
-indexing.}
-
 \item{priors}{[\code{data.frame}]\cr An optional data frame with prior
 definitions. See \code{\link[=get_priors]{get_priors()}} and 'Details'.}
 
+\item{backend}{[\code{character(1)}]\cr Defines the backend interface to Stan,
+should be  either \code{"rstan"} (the default) or \code{"cmdstanr"}. Note that
+\code{cmdstanr} needs to be installed separately as it is not on CRAN. It also
+needs the actual \code{CmdStan} software. See https://mc-stan.org/cmdstanr/ for
+details.}
+
 \item{verbose}{[\code{logical(1)}]\cr All warnings and messages are suppressed
 if set to \code{FALSE}. Defaults to \code{TRUE}.}
+
+\item{verbose_stan}{[\code{logical(1)}]\cr This is the \code{verbose} argument for
+\code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}}. Defaults to \code{FALSE}.}
 
 \item{debug}{[\code{list()}]\cr A named list of form \code{name = TRUE} indicating
 additional objects in the environment of the \code{dynamite} function which are
@@ -64,13 +74,12 @@ and sampling steps respectively. This can be useful for debugging when
 combined with \code{model_code = TRUE}, which adds the Stan model code to the
 return object.}
 
-\item{backend}{[\code{character(1)}]\cr Defines the backend interface to Stan,
-should be  either \code{"rstan"} (the default) or \code{"cmdstanr"}. Note that
-\code{cmdstanr} needs to be installed separately as it is not on CRAN. It also
-needs the actual \code{CmdStan} software. See https://mc-stan.org/cmdstanr/ for
-details.}
-
-\item{...}{Further arguments to \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}}.}
+\item{...}{For \code{dynamite()}, additional arguments to \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}} or
+\code{\link[cmdstanr:model-method-sample]{cmdstanr::sample()}}, such as \code{chains} and \code{cores} (\code{parallel_chains} in
+\code{cmdstanr}). For \code{summary()}, additional arguments to
+\code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}}. For \code{print()}, further arguments
+to the print method for tibbles (see \link[tibble:formatting]{tibble::formatting}). Not used for
+\code{formula()}.}
 
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
 
@@ -101,11 +110,11 @@ package was used in sampling.
 \code{summary} returns a \code{data.frame}.
 }
 \description{
-Fit a Bayesian dynamic multivariate panel model using Stan for Bayesian
-inference. The \pkg{dynamite} package supports a wide range of distributions
-and allows the user to flexibly customize the priors for the model
-parameters. The dynamite model is specified using standard \R formula syntax
-via \code{\link[=dynamiteformula]{dynamiteformula()}}. For more information and examples,
+Fit a Bayesian dynamic multivariate panel model (DMPM) using Stan for
+Bayesian inference. The \pkg{dynamite} package supports a wide range of
+distributions and allows the user to flexibly customize the priors for the
+model parameters. The dynamite model is specified using standard \R formula
+syntax via \code{\link[=dynamiteformula]{dynamiteformula()}}. For more information and examples,
 see 'Details' and the package vignette.
 
 The \code{formula} method returns the model definition as a quoted expression.
@@ -116,7 +125,8 @@ effective sample sizes, largest Rhat and summary statistics of the
 time-invariant model parameters.
 
 The \code{summary} method provides statistics of the posterior samples of the
-model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}}.
+model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}} with
+\code{summary = TRUE}.
 }
 \details{
 Any univariate unbounded continuous distributions supported by Stan can be
@@ -152,7 +162,10 @@ shape of the posterior), this can vary greatly.
 fit <- dynamite(
   dformula = obs(y ~ -1 + varying(~x), family = "gaussian") +
     lags(type = "varying") +
-    splines(df = 20), gaussian_example, "id", "time",
+    splines(df = 20),
+  gaussian_example,
+  "time",
+  "id",
   chains = 1,
   refresh = 0
 )
@@ -162,7 +175,14 @@ formula(gaussian_example_fit)
 
 print(gaussian_example_fit)
 
-summary(gaussian_example_fit, types = "beta",
-  probs = c(0.05, 0.1, 0.9, 0.95))
+summary(gaussian_example_fit,
+  types = "beta",
+  probs = c(0.05, 0.1, 0.9, 0.95)
+)
 
+}
+\references{
+Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
+from Panel Data with Dynamic Multivariate Panel Models. SocArxiv preprint,
+\url{https://osf.io/preprints/socarxiv/mdwu5/}.
 }

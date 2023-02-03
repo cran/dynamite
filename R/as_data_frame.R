@@ -12,20 +12,20 @@
 #'  * `alpha`\cr Intercept terms (time-invariant or time-varying).
 #'  * `beta`\cr Time-invariant regression coefficients.
 #'  * `delta`\cr Time-varying regression coefficients.
-#'  * `nu`\cr Random intercepts.
+#'  * `nu`\cr Group-level random effects.
 #'  * `lambda`\cr Factor loadings.
 #'  * `psi`\cr Latent factors.
 #'  * `tau`\cr Standard deviations of the spline coefficients of `delta`.
 #'  * `tau_alpha`\cr Standard deviations of the spline coefficients of
 #'    time-varying `alpha`.
 #'  * `xi`\cr Common time-varying shrinkage factor for splines.
-#'  * `sigma_nu`\cr Standard deviation of the random intercepts `nu`.
-#'  * `corr_nu`\cr Pairwise within-group correlations of random intercepts `nu`.
+#'  * `sigma_nu`\cr Standard deviations of the random effects `nu`.
+#'  * `corr_nu`\cr Pairwise within-group correlations of random effects `nu`.
 #'     Samples of the full correlation matrix can be extracted manually as
 #'     `rstan::extract(fit$stanfit, pars = "corr_matrix_nu")` if necessary.
 #'  * `sigma_lambda`\cr Standard deviations of the latent factor loadings
 #'    `lambda`.
-#'  * `tau_psi`\cr Standard deviations of the the spline coeffients of `psi`.
+#'  * `tau_psi`\cr Standard deviations of the the spline coefficients of `psi`.
 #'  * `corr_psi`\cr Pairwise correlations of the latent factors.
 #'     Samples of the full correlation matrix can be extracted manually as
 #'     `rstan::extract(fit$stanfit, pars = "corr_matrix_psi")` if necessary.
@@ -39,17 +39,23 @@
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param row.names Ignored.
 #' @param optional Ignored.
-#' @param responses  \[`character()`]\cr Response(s) for which the samples
+#' @param parameters \[`character()`]\cr Parameter(s) for which the samples
+#'   should be extracted. Possible options can be found with function
+#'   `get_parameter_names()`. Default is all parameters of specific type for all
+#'   responses.
+#' @param responses \[`character()`]\cr Response(s) for which the samples
 #'   should be extracted. Possible options are elements of
 #'   `unique(x$priors$response)`, and the default is this entire vector.
+#'    Ignored if the argument `parameters` is supplied.
 #' @param types \[`character()`]\cr Type(s) of the parameters for which the
 #'   samples should be extracted. See details of possible values. Default is
-#'   all values listed in details except spline coefficients `omega` and
-#'   `omega_alpha`.
-#' @param summary \[`logical(1)`]\cr If `TRUE` (default), returns posterior
+#'   all values listed in details except spline coefficients `omega`,
+#'   `omega_alpha`, and `omega_psi`. See also [dynamite::get_parameter_types()].
+#'    Ignored if the argument `parameters` is supplied.
+#' @param summary \[`logical(1)`]\cr If `TRUE`, returns posterior
 #'   mean, standard deviation, and posterior quantiles (as defined by the
-#'   `probs` argument) for all parameters. If `FALSE`, returns the posterior
-#'   samples instead.
+#'   `probs` argument) for all parameters. If `FALSE` (default), returns the
+#'   posterior samples instead.
 #' @param probs \[`numeric()`]\cr Quantiles of interest. Default is
 #'   `c(0.05, 0.95)`.
 #' @param include_fixed \[`logical(1)`]\cr If `TRUE` (default), time-varying
@@ -84,8 +90,9 @@
 #' )
 #'
 #' if (requireNamespace("dplyr") &&
-#'     requireNamespace("tidyr") &&
-#'     base::getRversion() >= "4.1.0") {
+#'   requireNamespace("tidyr") &&
+#'   base::getRversion() >= "4.1.0") {
+#'
 #'   results |>
 #'     dplyr::group_by(parameter) |>
 #'     dplyr::summarise(mean = mean(value), sd = sd(value))
@@ -113,14 +120,16 @@
 #' }
 #'
 as.data.frame.dynamitefit <- function(x, row.names = NULL, optional = FALSE,
-                                      responses = NULL, types = NULL,
-                                      summary = TRUE, probs = c(0.05, 0.95),
+                                      parameters = NULL, responses = NULL,
+                                      types = NULL,
+                                      summary = FALSE, probs = c(0.05, 0.95),
                                       include_fixed = TRUE, ...) {
   out <- as.data.table.dynamitefit(
     x,
     keep.rownames = FALSE,
     row.names,
     optional,
+    parameters,
     responses,
     types,
     summary,

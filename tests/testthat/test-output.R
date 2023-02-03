@@ -7,17 +7,17 @@ capture_all_output <- function(x) {
 }
 
 test_that("dynamiteformula can be printed", {
-  f <- obs(y ~ x, family = "gaussian") +
+  f <- obs(y ~ x + random(~1), family = "gaussian") +
     lags(k = c(1, 3)) +
-    random(responses = "y")
+    random_spec()
   expect_output(
     print(f),
     paste0(
-      "  Family   Formula\n",
-      "y gaussian y ~ x  \n",
+      "  Family   Formula           \n",
+      "y gaussian y ~ x \\+ random\\(~1\\)\n",
       "\n",
       "Lagged responses added as predictors with: k = 1, 3\n",
-      "Correlated random intercepts added for response\\(s\\): y"
+      "Correlated random effects added for response\\(s\\): y"
     )
   )
 })
@@ -158,9 +158,9 @@ test_that("MCMC diagnostics can be computed", {
 test_that("gets can be got", {
   expect_error(
     get_code(
-      obs(y ~ -1 + z + varying(~ x + lag(y)), family = "gaussian") +
-        random() + splines(df = 20),
-      gaussian_example, "id", "time"
+      obs(y ~ -1 + z + varying(~ x + lag(y)) +
+        random(~1), family = "gaussian") + random_spec() + splines(df = 20),
+      gaussian_example, time =  "time", group = "id"
     ),
     NA
   )
@@ -170,15 +170,26 @@ test_that("gets can be got", {
   )
   expect_error(
     get_data(
-      obs(y ~ -1 + z + varying(~ x + lag(y)), family = "gaussian") +
-        random() + splines(df = 20),
-      gaussian_example, "id", "time"
+      obs(y ~ -1 + z + varying(~ x + lag(y)) + random(~1),
+        family = "gaussian"
+      ) + random_spec() + splines(df = 20),
+      gaussian_example, time = "time", group = "id"
     ),
     NA
   )
   expect_error(
     get_data(gaussian_example_fit),
     NA
+  )
+  expect_equal(
+    get_parameter_names(categorical_example_fit),
+    c("alpha_x", "beta_x_z", "beta_x_x_lag1B", "beta_x_x_lag1C",
+      "beta_x_y_lag1b", "beta_x_y_lag1c", "alpha_y", "beta_y_z",
+      "beta_y_x_lag1B", "beta_y_x_lag1C", "beta_y_y_lag1b", "beta_y_y_lag1c")
+  )
+  expect_equal(
+    get_parameter_types(latent_factor_example_fit),
+    c("sigma", "lambda", "sigma_lambda", "psi", "tau_psi", "omega_psi")
   )
 })
 

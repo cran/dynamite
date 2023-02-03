@@ -10,9 +10,10 @@
   keep.rownames = FALSE,
   row.names = NULL,
   optional = FALSE,
+  parameters = NULL,
   responses = NULL,
   types = NULL,
-  summary = TRUE,
+  summary = FALSE,
   probs = c(0.05, 0.95),
   include_fixed = TRUE,
   ...
@@ -27,19 +28,26 @@
 
 \item{optional}{Ignored.}
 
+\item{parameters}{[\code{character()}]\cr Parameter(s) for which the samples
+should be extracted. Possible options can be found with function
+\code{get_parameter_names()}. Default is all parameters of specific type for all
+responses.}
+
 \item{responses}{[\code{character()}]\cr Response(s) for which the samples
 should be extracted. Possible options are elements of
-\code{unique(x$priors$response)}, and the default is this entire vector.}
+\code{unique(x$priors$response)}, and the default is this entire vector.
+Ignored if the argument \code{parameters} is supplied.}
 
 \item{types}{[\code{character()}]\cr Type(s) of the parameters for which the
 samples should be extracted. See details of possible values. Default is
-all values listed in details except spline coefficients \code{omega} and
-\code{omega_alpha}.}
+all values listed in details except spline coefficients \code{omega},
+\code{omega_alpha}, and \code{omega_psi}. See also \code{\link[=get_parameter_types]{get_parameter_types()}}.
+Ignored if the argument \code{parameters} is supplied.}
 
-\item{summary}{[\code{logical(1)}]\cr If \code{TRUE} (default), returns posterior
+\item{summary}{[\code{logical(1)}]\cr If \code{TRUE}, returns posterior
 mean, standard deviation, and posterior quantiles (as defined by the
-\code{probs} argument) for all parameters. If \code{FALSE}, returns the posterior
-samples instead.}
+\code{probs} argument) for all parameters. If \code{FALSE} (default), returns the
+posterior samples instead.}
 
 \item{probs}{[\code{numeric()}]\cr Quantiles of interest. Default is
 \code{c(0.05, 0.95)}.}

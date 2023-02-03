@@ -28,7 +28,9 @@
 #'   * `refits`\cr Time points where model was re-estimated.
 #'   * `L`\cr L value used in the LFO estimation.
 #'   * `k_threshold`\cr Threshold used in the LFO estimation.
-#'
+#' @references Paul-Christian Bürkner, Jonah Gabry, and Aki Vehtari (2020).
+#' Approximate leave-future-out cross-validation for Bayesian time series
+#' models, Journal of Statistical Computation and Simulation, 90:14, 2499-2523.
 #' @examples
 #' \donttest{
 #' # this gives warnings due to the small number of iterations
@@ -72,7 +74,7 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   timepoints <- sort(unique(x$data[[time_var]]))
   d <- data.table::copy(x$data)
   set_na_ <- d[[time_var]] > timepoints[L]
-  #d[set_na, (responses) := NA, env = list(set_na = set_na)]
+  # d[set_na, (responses) := NA, env = list(set_na = set_na)]
   d[set_na_, (responses) := NA]
 
   if (verbose) {
@@ -106,8 +108,8 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   subset_indices_ <- out[[time_var]] > timepoints[L]
   lls <- stats::na.omit(out[
     subset_indices_
-    #time > timepoints[L], #,
-    #env = list(time = time, timepoints = timepoints, L = L)
+    # time > timepoints[L], #,
+    # env = list(time = time, timepoints = timepoints, L = L)
   ][,
     loglik := rowSums(.SD),
     .SDcols = patterns("_loglik$")
@@ -120,13 +122,13 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   subset_index_ <- lls[[time_var]] == timepoints[L + 1L]
   elpds[[1L]] <- lls[
     subset_index_
-    #time == timepoints[L + 1L], ,
-    #env = list(time = time, timepoints = timepoints, L = L)
+    # time == timepoints[L + 1L], ,
+    # env = list(time = time, timepoints = timepoints, L = L)
   ][,
     list(elpd = log_mean_exp(loglik)),
     by = c(time_var, group_var)
-    #by = list(time, id)#,
-    #env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
+    # by = list(time, id)#,
+    # env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
   ][["elpd"]]
 
   i_refit <- L
@@ -136,22 +138,22 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   for (i in seq.int(L + 1L, T_ - 1L)) {
     subset_index_ <- lls[[time_var]] == timepoints[i + 1L]
     if (lls[subset_index_, .N] > 0L) {
-            #.N,
-            #env = list(time = time, i = i)] > 0L) {
+      # .N,
+      # env = list(time = time, i = i)] > 0L) {
       logratio_subset_index_ <-
         lls[[time_var]] > timepoints[i_refit] &
-        lls[[time_var]] <= timepoints[i]
+          lls[[time_var]] <= timepoints[i]
       logratio <- lls[
-        logratio_subset_index_, #,
-        #env = list(
+        logratio_subset_index_, # ,
+        # env = list(
         #  time = time,
         #  timepoints = timepoints,
         #  i = i,
         #  i_refit = i_refit
-        #)
+        # )
       ][,
         list(logratio = sum(loglik)),
-        #by = list(id, .draw),
+        # by = list(id, .draw),
         by = c(group_var, ".draw")
       ]
 
@@ -172,7 +174,7 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
         refits <- c(refits, timepoints[i])
         d <- data.table::copy(x$data)
         set_na_ <- d[[x$time_var]] > timepoints[i]
-        #d[set_na, (responses) := NA, env = list(set_na = set_na)]
+        # d[set_na, (responses) := NA, env = list(set_na = set_na)]
         d[set_na_, (responses) := NA]
         fit <- update(fit, data = d, refresh = 0, ...)
 
@@ -192,8 +194,8 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
 
         threshold_subset_index_ <- out[[time_var]] > timepoints[L]
         lls <- stats::na.omit(out[
-          threshold_subset_index_, #,
-          #env = list(time = time, timepoint = timepoints, L = L)
+          threshold_subset_index_, # ,
+          # env = list(time = time, timepoint = timepoints, L = L)
         ])[,
           loglik := rowSums(.SD),
           .SDcols = patterns("_loglik$")
@@ -203,22 +205,21 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
         ]
         elpds_subset_index_ <- lls[[time_var]] == timepoints[i + 1L]
         elpds[[i - L + 1L]] <- lls[
-          elpds_subset_index_ #,
-          #env = list(time = time, timepoints = timepoints, i = i)
+          elpds_subset_index_ # ,
+          # env = list(time = time, timepoints = timepoints, i = i)
         ][,
           list(elpd = log_mean_exp(loglik)),
-          #by = list(time, id)#,
+          # by = list(time, id)#,
           by = c(time_var, group_var)
-          #env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
+          # env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
         ][["elpd"]]
-
       } else {
         lw <- loo::weights.importance_sampling(psis_obj, normalize = TRUE)
         lw_subset_index_ <- lls[[time_var]] == timepoints[i + 1]
         ll <- lls[
           lw_subset_index_,
-          loglik#,
-          #env = list(time = time, timepoints = timepoints, i = i)
+          loglik # ,
+          # env = list(time = time, timepoints = timepoints, i = i)
         ]
         elpds[[i - L + 1L]] <-
           log_sum_exp_rows(t(lw) + matrix(ll, ncol = n_draws))

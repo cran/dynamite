@@ -11,7 +11,7 @@
 
 \item{newdata}{[\code{data.frame}]\cr Data used in predictions.
 If \code{NULL} (default), the data used in model estimation is used for
-predictions as well,
+predictions as well.
 There should be no new time points that were not present in the data that
 were used to fit the model, and no new group levels can be included.}
 
@@ -36,10 +36,9 @@ consists of \code{data.frame} objects, and \code{data.table} objects otherwise.}
 A \code{data.frame} containing the fitted values.
 }
 \description{
-Fitted values for a \code{dynamitefit} object.Note that these are conditional on
-the observed data in \code{newdata},i.e., these are one-step estimates
-E(y_t|y_t-1,...,y_1). Often \code{\link[=predict.dynamitefit]{predict.dynamitefit()}} is what you
-want.
+Fitted values for a \code{dynamitefit} object, i.e., \eqn{E(y_t | newdata, \theta)}
+where \eqn{\theta} contains all the model parameters. See also
+\code{\link[=predict.dynamitefit]{predict.dynamitefit()}} for multi-step predictions.
 }
 \examples{
 fitted(gaussian_example_fit, n_draws = 2L)
@@ -48,15 +47,16 @@ set.seed(1)
 fit <- dynamite(
   dformula = obs(LakeHuron ~ 1, "gaussian") + lags(),
   data = data.frame(LakeHuron, time = seq_len(length(LakeHuron)), id = 1),
-  group = "id",
   time = "time",
+  group = "id",
   chains = 1,
   refresh = 0
 )
 
 if (requireNamespace("dplyr") &&
-    requireNamespace("tidyr") &&
-    base::getRversion() >= "4.1.0") {
+  requireNamespace("tidyr") &&
+  base::getRversion() >= "4.1.0") {
+
   # One-step ahead samples (fitted values) from the posterior
   # (first time point is fixed due to lag in the model):
   fitted(fit) |>

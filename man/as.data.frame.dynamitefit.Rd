@@ -8,9 +8,10 @@
   x,
   row.names = NULL,
   optional = FALSE,
+  parameters = NULL,
   responses = NULL,
   types = NULL,
-  summary = TRUE,
+  summary = FALSE,
   probs = c(0.05, 0.95),
   include_fixed = TRUE,
   ...
@@ -23,19 +24,26 @@
 
 \item{optional}{Ignored.}
 
+\item{parameters}{[\code{character()}]\cr Parameter(s) for which the samples
+should be extracted. Possible options can be found with function
+\code{get_parameter_names()}. Default is all parameters of specific type for all
+responses.}
+
 \item{responses}{[\code{character()}]\cr Response(s) for which the samples
 should be extracted. Possible options are elements of
-\code{unique(x$priors$response)}, and the default is this entire vector.}
+\code{unique(x$priors$response)}, and the default is this entire vector.
+Ignored if the argument \code{parameters} is supplied.}
 
 \item{types}{[\code{character()}]\cr Type(s) of the parameters for which the
 samples should be extracted. See details of possible values. Default is
-all values listed in details except spline coefficients \code{omega} and
-\code{omega_alpha}.}
+all values listed in details except spline coefficients \code{omega},
+\code{omega_alpha}, and \code{omega_psi}. See also \code{\link[=get_parameter_types]{get_parameter_types()}}.
+Ignored if the argument \code{parameters} is supplied.}
 
-\item{summary}{[\code{logical(1)}]\cr If \code{TRUE} (default), returns posterior
+\item{summary}{[\code{logical(1)}]\cr If \code{TRUE}, returns posterior
 mean, standard deviation, and posterior quantiles (as defined by the
-\code{probs} argument) for all parameters. If \code{FALSE}, returns the posterior
-samples instead.}
+\code{probs} argument) for all parameters. If \code{FALSE} (default), returns the
+posterior samples instead.}
 
 \item{probs}{[\code{numeric()}]\cr Quantiles of interest. Default is
 \code{c(0.05, 0.95)}.}
@@ -66,20 +74,20 @@ Potential values for the \code{types} argument are:
 \item \code{alpha}\cr Intercept terms (time-invariant or time-varying).
 \item \code{beta}\cr Time-invariant regression coefficients.
 \item \code{delta}\cr Time-varying regression coefficients.
-\item \code{nu}\cr Random intercepts.
+\item \code{nu}\cr Group-level random effects.
 \item \code{lambda}\cr Factor loadings.
 \item \code{psi}\cr Latent factors.
 \item \code{tau}\cr Standard deviations of the spline coefficients of \code{delta}.
 \item \code{tau_alpha}\cr Standard deviations of the spline coefficients of
 time-varying \code{alpha}.
 \item \code{xi}\cr Common time-varying shrinkage factor for splines.
-\item \code{sigma_nu}\cr Standard deviation of the random intercepts \code{nu}.
-\item \code{corr_nu}\cr Pairwise within-group correlations of random intercepts \code{nu}.
+\item \code{sigma_nu}\cr Standard deviations of the random effects \code{nu}.
+\item \code{corr_nu}\cr Pairwise within-group correlations of random effects \code{nu}.
 Samples of the full correlation matrix can be extracted manually as
 \code{rstan::extract(fit$stanfit, pars = "corr_matrix_nu")} if necessary.
 \item \code{sigma_lambda}\cr Standard deviations of the latent factor loadings
 \code{lambda}.
-\item \code{tau_psi}\cr Standard deviations of the the spline coeffients of \code{psi}.
+\item \code{tau_psi}\cr Standard deviations of the the spline coefficients of \code{psi}.
 \item \code{corr_psi}\cr Pairwise correlations of the latent factors.
 Samples of the full correlation matrix can be extracted manually as
 \code{rstan::extract(fit$stanfit, pars = "corr_matrix_psi")} if necessary.
@@ -114,8 +122,9 @@ as.data.frame(gaussian_example_fit,
 )
 
 if (requireNamespace("dplyr") &&
-    requireNamespace("tidyr") &&
-    base::getRversion() >= "4.1.0") {
+  requireNamespace("tidyr") &&
+  base::getRversion() >= "4.1.0") {
+
   results |>
     dplyr::group_by(parameter) |>
     dplyr::summarise(mean = mean(value), sd = sd(value))

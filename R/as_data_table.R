@@ -21,8 +21,9 @@
 #'
 as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
                                       row.names = NULL, optional = FALSE,
+                                      parameters = NULL,
                                       responses = NULL, types = NULL,
-                                      summary = TRUE, probs = c(0.05, 0.95),
+                                      summary = FALSE, probs = c(0.05, 0.95),
                                       include_fixed = TRUE, ...) {
   stopifnot_(
     !missing(x),
@@ -35,6 +36,15 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
   stopifnot_(
     !is.null(x$stanfit),
     "No Stan model fit is available."
+  )
+  stopifnot_(
+    checkmate::test_character(
+      x = parameters,
+      any.missing = FALSE,
+      min.len = 1L,
+      null.ok = TRUE
+    ),
+    "Argument {.arg parameters} must be a {.cls character} vector."
   )
   stopifnot_(
     checkmate::test_character(
@@ -73,6 +83,9 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
     checkmate::test_flag(x = include_fixed),
     "Argument {.arg include_fixed} must be a single {.cls logical} value."
   )
+  if (!is.null(parameters)) {
+    responses <- types <- NULL
+  }
   if (is.null(responses)) {
     responses <- setdiff(unique(x$priors$response), "")
   } else {
@@ -215,22 +228,39 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
     MoreArgs = NULL
   )
   out <- data.table::rbindlist(all_values, fill = TRUE)
+  if (!is.null(parameters)) {
+    data.table::setkey(out, "parameter")
+    found_pars <- parameters %in% unique(out$parameter)
+    stopifnot_(all(found_pars),
+      c(
+      "Parameter{?s} {.var {parameters[!found_pars]}} not found in
+        the model output.",
+        `x` = "Use {.fun get_parameter_names} to check available parameters."
+      )
+    )
+    out <- out[parameters]
+  }
   if (summary) {
     pars <- unique(out$parameter)
-    out <- out[,
+    out <- out[
+      ,
       parameter := factor(parameter, levels = pars, ordered = TRUE)
     ][,
       {
-        mean = mean(value)
-        sd = sd(value)
-        tmp = quantile(value, probs = probs, na.rm = TRUE)
+        mean <- mean(value)
+        sd <- sd(value)
+        tmp <- quantile(value, probs = probs, na.rm = TRUE)
         names(tmp) <- paste0("q", 100 * probs)
         c(list(mean = mean, sd = sd), tmp)
       },
-      by = list(parameter, time, category, group, response, type)
-    ][,
+      by = list(parameter, time, group, category, response, type)
+    ][
+      ,
       parameter := as.character(parameter)
     ]
+    pnames <- c("time", "group", "category", "response", "type")
+    cnames <- setdiff(colnames(out), pnames)
+    data.table::setcolorder(out, neworder = c(cnames, pnames))
   }
   out
 }
@@ -263,11 +293,19 @@ as_data_table_xi <- function(x, draws, ...) {
 
 #' @describeIn as_data_table_default Data Table for a "corr_nu" Parameter
 #' @noRd
-as_data_table_corr_nu <- function(x, draws, ...) {
-  resp <- attr(x$dformulas$stoch, "random")
-  pairs <- apply(utils::combn(resp, 2L), 2L, paste, collapse = "_")
+as_data_table_corr_nu <- function(x, draws, n_draws, ...) {
+  vars <- unlist(lapply(x$stan$model_vars, function(x) {
+    icpt <- ifelse_(
+      x$has_random_intercept,
+      "alpha",
+      NULL
+    )
+    paste0(x$resp, "_", c(icpt, names(x$J_random)))
+  }))
+
+  pairs <- apply(utils::combn(vars, 2L), 2L, paste, collapse = "__")
   data.table::data.table(
-    parameter = paste0("corr_nu_", pairs),
+    parameter = rep(paste0("corr_nu_", pairs), each = n_draws),
     value = c(draws)
   )
 }
@@ -275,11 +313,22 @@ as_data_table_corr_nu <- function(x, draws, ...) {
 #' @describeIn as_data_table_default Data Table for a "nu" Parameter
 #' @noRd
 as_data_table_nu <- function(x, draws, n_draws, response, ...) {
-  n_group <- dim(draws)[3L]
+  icpt <- ifelse_(
+    x$stan$model_vars[[response]]$has_random_intercept,
+    "alpha",
+    NULL
+  )
+  var_names <- paste0(
+    "nu_", response, "_",
+    c(icpt, names(x$stan$model_vars[[response]]$J_random))
+  )
+  n_vars <- length(var_names)
+  groups <- sort(unique(x$data[[x$group_var]]))
+  n_groups <- length(groups)
   data.table::data.table(
-    parameter = paste0("nu_", response),
+    parameter = rep(var_names, each = n_draws * n_groups),
     value = c(draws),
-    group = rep(sort(unique(x$data[[x$group_var]])), each = n_draws)
+    group = rep(groups, each = n_draws)
   )
 }
 
@@ -434,8 +483,20 @@ as_data_table_sigma <- function(draws, response, ...) {
 
 #' @describeIn as_data_table_default Data Table for a "sigma_nu" Parameter
 #' @noRd
-as_data_table_sigma_nu <- function(draws, response, ...) {
-  as_data_table_default("sigma_nu", draws, response)
+as_data_table_sigma_nu <- function(x, draws, n_draws, response, ...) {
+  icpt <- ifelse_(
+    x$stan$model_vars[[response]]$has_random_intercept,
+    "alpha",
+    NULL
+  )
+  var_names <- paste0(
+    "sigma_nu_", response, "_",
+    c(icpt, names(x$stan$model_vars[[response]]$J_random))
+  )
+  data.table::data.table(
+    parameter = rep(var_names, each = n_draws),
+    value = c(draws)
+  )
 }
 
 #' @describeIn as_data_table_default Data Table for a "phi" Parameter
@@ -463,8 +524,9 @@ as_data_table_sigma_lambda <- function(draws, response, ...) {
 
 #' @describeIn as_data_table_default Data Table for a "psi" Parameter
 #' @noRd
-as_data_table_psi <- function(x, draws, n_draws,
-  response, category, include_fixed) {
+as_data_table_psi <- function(
+    x, draws, n_draws,
+    response, category, include_fixed) {
   n_cat <- length(category)
   fixed <- x$stan$fixed
   all_time_points <- sort(unique(x$data[[x$time_var]]))
@@ -514,11 +576,11 @@ as_data_table_omega_psi <- function(x, draws, n_draws, category, ...) {
 
 #' @describeIn as_data_table_default Data Table for a "corr_psi" Parameter
 #' @noRd
-as_data_table_corr_psi <- function(x, draws, ...) {
+as_data_table_corr_psi <- function(x, draws, n_draws, ...) {
   resp <- attr(x$dformulas$stoch, "lfactor")
   pairs <- apply(utils::combn(resp, 2L), 2L, paste, collapse = "_")
   data.table::data.table(
-    parameter = paste0("corr_psi_", pairs),
+    parameter = rep(paste0("corr_psi_", pairs), each = n_draws),
     value = c(draws)
   )
 }

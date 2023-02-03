@@ -14,6 +14,9 @@
 #' @param ... Ignored.
 #' @return An output from [loo::loo()] or a list of such outputs (if
 #'   `separate_channels` was `TRUE`).
+#' @references Aki Vehtari, Andrew, Gelman, and Johah Gabry (2017).
+#' Practical Bayesian model evaluation using leave-one-out cross-validation and
+#' WAIC. Statistics and Computing. 27(5), 1413–1432.
 #' @examples
 #' \donttest{
 #' # this gives warnings due to the small number of iterations
@@ -69,8 +72,10 @@ loo.dynamitefit <- function(x, separate_channels = FALSE, ...) {
     )
     lapply(ll, function(x) loo_(x$value, n_draws, n_chains))
   } else {
-    ll <- out[is.finite(rowSums(out))][,
-      rowSums(.SD), .SDcols = patterns("_loglik$")
+    temp <- out[, .SD, .SDcols = patterns("_loglik$")]
+    ll <- temp[is.finite(rowSums(temp))][,
+      rowSums(.SD),
+      .SDcols = names(temp)
     ]
     loo_(ll, n_draws, n_chains)
   }

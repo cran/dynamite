@@ -9,6 +9,7 @@ knitr::opts_chunk$set(
 
 ## ----setup, echo = FALSE------------------------------------------------------
 library(dynamite)
+ggplot2::theme_set(ggplot2::theme_bw())
 
 ## ---- echo=TRUE, eval=FALSE---------------------------------------------------
 #  obs(y ~ lag(x), family = "gaussian") +
@@ -24,6 +25,9 @@ library(dynamite)
 #  obs(x ~ z + lag(y, k = 1), family = "poisson")
 
 ## ---- echo=TRUE, eval=FALSE---------------------------------------------------
+#  obs(x ~ z + random(~1 + z), family = "gaussian")
+
+## ---- echo=TRUE, eval=FALSE---------------------------------------------------
 #  obs(y ~ lag(log1x), family = "gaussian") +
 #  obs(x ~ z, family = "poisson") +
 #  aux(numeric(log1x) ~ log(1 + x) | init(0))
@@ -34,16 +38,16 @@ library(dynamite)
 #  aux(numeric(log1x) ~ log(1 + x) | past(log(z)))
 
 ## ---- echo=TRUE, eval=FALSE---------------------------------------------------
-#  dynamite(dformula, data, group = NULL, time, priors = NULL, verbose = TRUE,
-#    debug = NULL, ...)
-#  
+#  dynamite(dformula, data, time, group = NULL,
+#    priors = NULL, backend = "rstan",
+#    verbose = TRUE, verbose_stan = FALSE, debug = NULL, ...)
 
 ## ---- echo=TRUE, eval=FALSE---------------------------------------------------
 #  dynamite(
 #    dformula = obs(x ~ varying(~ -1 + w), family = "poisson") + splines(df = 10),
 #    data = d,
-#    group = "id"
 #    time = "year",
+#    group = "id"
 #    chains = 2,
 #    cores = 2
 #  )
@@ -61,23 +65,25 @@ f <- obs(g ~ lag(g) + lag(logp), family = "gaussian") +
 
 ## ---- eval = FALSE------------------------------------------------------------
 #  multichannel_example_fit <- dynamite(
-#    f, multichannel_example, "id", "time",
+#    f, data = multichannel_example,
+#    time = "time", group = "id"
 #    chains = 1, cores = 1, iter = 2000, warmup = 1000, init = 0, refresh = 0,
 #    thin = 5, save_warmup = FALSE)
 
 ## ---- eval = FALSE------------------------------------------------------------
 #  multichannel_example_fit <- update(multichannel_example_fit,
-#      iter = 2000,
-#      warmup = 1000,
-#      chains = 4,
-#      cores = 4,
-#      refresh = 0,
-#      save_warmup = FALSE
+#    iter = 2000,
+#    warmup = 1000,
+#    chains = 4,
+#    cores = 4,
+#    refresh = 0,
+#    save_warmup = FALSE
 #  )
 
 ## ---- eval = TRUE, echo = FALSE-----------------------------------------------
-fit <- dynamite(f, multichannel_example, "id", "time", 
-                debug = list(no_compile = TRUE))
+fit <- dynamite(
+  f, data = multichannel_example, 
+  time = "time", group = "id", debug = list(no_compile = TRUE))
 
 ## -----------------------------------------------------------------------------
 plot_betas(multichannel_example_fit)
@@ -116,16 +122,16 @@ sumr <- dplyr::bind_rows(
 
 ## ---- eval = FALSE------------------------------------------------------------
 #  pred0b <- predict(multichannel_example_fit, newdata = newdata0, type = "mean",
-#    funs = list(g_mean = list(mean_t = mean)))$simulated
+#    funs = list(g = list(mean_t = mean)))$simulated
 #  pred1b <- predict(multichannel_example_fit, newdata = newdata1, type = "mean",
-#    funs = list(g_mean = list(mean_t = mean)))$simulated
+#    funs = list(g = list(mean_t = mean)))$simulated
 #  sumrb <- dplyr::bind_rows(
 #    list(b0 = pred0b, b1 = pred1b), .id = "case") |>
 #    dplyr::group_by(case, time) |>
 #    dplyr::summarise(
-#      mean = mean(mean_t_g_mean),
-#      q5 = quantile(mean_t_g_mean, 0.05, na.rm = TRUE),
-#      q95 = quantile(mean_t_g_mean, 0.95, na.rm = TRUE))
+#      mean = mean(mean_t_g),
+#      q5 = quantile(mean_t_g, 0.05, na.rm = TRUE),
+#      q95 = quantile(mean_t_g, 0.95, na.rm = TRUE))
 
 ## -----------------------------------------------------------------------------
 library(ggplot2)

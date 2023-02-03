@@ -36,14 +36,14 @@ get_priors <- function(x, ...) {
 
 #' @rdname get_priors
 #' @export
-get_priors.dynamiteformula <- function(x, data, group = NULL, time, ...) {
+get_priors.dynamiteformula <- function(x, data, time, group = NULL, ...) {
   out <- do.call(
     "dynamite",
     list(
       dformula = x,
       data = data,
-      group = group,
       time = time,
+      group = group,
       debug = list(no_compile = TRUE),
       ...
     )
@@ -65,7 +65,9 @@ get_priors.dynamitefit <- function(x, ...) {
 #' @export
 #' @rdname get_code
 #' @inheritParams get_priors.dynamiteformula
-#' @return A Stan model code as a `character` string.
+#' @param blocks \[`character()`]\cr Stan block names to extract. If `NULL`,
+#'   extracts the full model code.
+#' @return The stan model blocks as a `character` string.
 #' @examples
 #' d <- data.frame(y = rnorm(10), x = 1:10, time = 1:10, id = 1)
 #' cat(get_code(obs(y ~ x, family = "gaussian"),
@@ -83,25 +85,70 @@ get_code <- function(x, ...) {
 
 #' @rdname get_code
 #' @export
-get_code.dynamiteformula <- function(x, data, group = NULL, time, ...) {
+get_code.dynamiteformula <- function(x, data, time,
+                                     group = NULL, blocks = NULL, ...) {
   out <- do.call(
     "dynamite",
     list(
       dformula = x,
       data = data,
-      group = group,
       time = time,
+      group = group,
       debug = list(no_compile = TRUE, model_code = TRUE),
       ...
     )
   )
-  out$model_code
+  get_code_(out$model_code, blocks)
 }
 
 #' @rdname get_code
 #' @export
-get_code.dynamitefit <- function(x, ...) {
-  x$stanfit@stanmodel@model_code
+get_code.dynamitefit <- function(x, blocks = NULL, ...) {
+  get_code_(x$stanfit@stanmodel@model_code, blocks)
+}
+
+#' Internal Stan Code Block Extraction
+#'
+#' @param x \[`character(1L)`]\cr The Stan model code string.
+#' @param blocks \[`character`]\cr Stan block names to extract. If `NULL`,
+#'   extracts the full model code.
+#' @noRd
+get_code_ <- function(x, blocks = NULL) {
+  if (is.null(blocks)) {
+    return(x)
+  }
+  stopifnot_(
+    checkmate::test_character(blocks, null.ok = TRUE)
+  )
+  block_names <- c(
+    "data",
+    "transformed data",
+    "parameters",
+    "transformed parameters",
+    "model"
+  )
+  invalid_blocks <- !blocks %in% block_names
+  stopifnot_(
+    all(!invalid_blocks),
+    c(
+      "Invalid Stan blocks provided: {cs(blocks[invalid_blocks])}",
+      `i` = "Argument {.arg blocks} must be NULL or a subset of
+             {cs(paste0(\"'\", block_names, \"'\"))}."
+    )
+  )
+  x <- strsplit(x, "\n")[[1L]]
+  block_rows <- paste0(block_names, " {")
+  block_start <- which(x %in% block_rows)
+  block_end <- c(block_start[-1L] - 1L, length(x))
+  names(block_start) <- names(block_end) <- block_names
+  out <- ""
+  for (block in blocks) {
+    out <- c(
+      out,
+      x[block_start[block]:block_end[block]]
+    )
+  }
+  paste_rows(out, .parse = FALSE)
 }
 
 #' Extract the Model Data of the Dynamite Model
@@ -124,14 +171,14 @@ get_data <- function(x, ...) {
 
 #' @rdname get_data
 #' @export
-get_data.dynamiteformula <- function(x, data, group = NULL, time, ...) {
+get_data.dynamiteformula <- function(x, data, time, group = NULL, ...) {
   out <- do.call(
     "dynamite",
     list(
       dformula = x,
       data = data,
-      group = group,
       time = time,
+      group = group,
       debug = list(no_compile = TRUE, sampling_vars = TRUE),
       ...
     )
@@ -143,4 +190,66 @@ get_data.dynamiteformula <- function(x, data, group = NULL, time, ...) {
 #' @export
 get_data.dynamitefit <- function(x, ...) {
   x$stan$sampling_vars
+}
+
+#' Get Parameter Types of the Dynamite Model
+#'
+#' Extracts all parameter types of used in the `dynamitefit` object. See
+#' [dynamite::as.data.frame.dynamitefit()] for explanations of different types.
+#'
+#' @param x \[`dynamitefit`]\cr The model fit object.
+#' @param ... Ignored.
+#' @return A `character` vector with all parameter types of the input model.
+#' @export
+#' @examples
+#' get_parameter_types(multichannel_example_fit)
+#'
+get_parameter_types <- function(x, ...) {
+  UseMethod("get_parameter_types", x)
+}
+
+#' @rdname get_parameter_types
+#' @export
+get_parameter_types.dynamitefit <- function(x, ...) {
+  types <- c(
+    "alpha", "beta", "delta", "tau", "tau_alpha", "xi",
+    "sigma_nu", "corr_nu", "sigma", "phi", "nu", "lambda", "sigma_lambda",
+    "psi", "tau_psi", "corr_psi", "omega", "omega_alpha", "omega_psi"
+  )
+  d <- as.data.table(x, types =  types)
+  unique(d$type)
+}
+
+#' Get Parameter Names of the Dynamite Model
+#'
+#' Extracts all parameter names of used in the `dynamitefit` object.
+#'
+#' The naming of parameters generally follows style where the name starts with
+#' the parameter type (e.g. beta for time-invariant regression coefficient),
+#' followed by underscore and the name of the response variable, and in case of
+#' time-invariant, time-varying or random effect, the name of the predictor. An
+#' exception to this is spline coefficients omega, which also contain the number
+#' denoting the knot number.
+#'
+#' @param x \[`dynamitefit`]\cr The model fit object.
+#' @param types Extract only names of parameter of certain type. See
+#' [dynamite::get_parameter_types()].
+#' @param ... Ignored.
+#' @return A `character` vector with parameter names of the input model.
+#' @export
+#' @examples
+#' get_parameter_names(multichannel_example_fit)
+#'
+get_parameter_names <- function(x, types = NULL, ...) {
+  UseMethod("get_parameter_names", x)
+}
+
+#' @rdname get_parameter_names
+#' @export
+get_parameter_names.dynamitefit <- function(x, types = NULL, ...) {
+  if (is.null(types)) {
+    types <- get_parameter_types(x)
+  }
+  d <- as.data.table(x, types =  types)
+  unique(d$parameter)
 }
