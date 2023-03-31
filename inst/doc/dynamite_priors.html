@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Priors for dynamic multivariate panel models</title>
+
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Priors for dynamic multivariate panel models</h1>
+
+
+
+<div id="default-prior-distributions-in-dynamite" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Default prior distributions in dynamite</h1>
+<p>The default priors in <code>dynamite</code> are chosen to be relatively uninformative (i.e., weakly informative) such that they provide computational stability by slightly regularizing the posterior. The motivation behind the default priors is thus similar to other popular Stan-based R packages such as <code>brms</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> and <code>rstanarm</code><a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<p>Define <span class="math inline">\(\sigma_x=\max(1, \text{SD}(x))\)</span>, where <span class="math inline">\(\mbox{SD}(x)\)</span> is the standard deviation of the predictor variable <span class="math inline">\(x\)</span> over groups and non-fixed time points (see section “Lagged responses and predictors” in the main vignette for more information: <code>vignette(&quot;dynamite&quot;, package = &quot;dynamite&quot;)</code>). Define also
+<span class="math display">\[
+\sigma_y = \begin{cases}
+\max(1, \text{SD}(y)), &amp;\text{if family is gaussian or student}\\
+1, &amp;\text{otherwise}
+\end{cases},
+\]</span>
+where <span class="math inline">\(SD(y)\)</span> is the standard deviation of the response variable as over groups and non-fixed time points.</p>
+<div id="regression-coefficients" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Regression coefficients</h2>
+<p>We define the default prior for a time-invariant regression coefficients <span class="math inline">\(\beta\)</span> as well for the first time-varying coefficient <span class="math inline">\(\delta_1\)</span> as zero-mean normal distribution with standard deviation of
+<span class="math inline">\(2\sigma_y/\sigma_x\)</span>. The two maximums used in definitions of <span class="math inline">\(\sigma_y\)</span> and <span class="math inline">\(\sigma_x\)</span> ensure that the prior standard deviation is at least 2.</p>
+</div>
+<div id="intercept" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Intercept</h2>
+<p>As the posterior correlations between the intercept <span class="math inline">\(\alpha\)</span> and the regression coefficients <span class="math inline">\(\beta\)</span> and <span class="math inline">\(\delta\)</span> can be cause computational inefficiencies with gradient-based sampling algorithms of Stan, sampling of the intercept is performed indirectly via parameter <span class="math inline">\(a\)</span>, so that the intercept <span class="math inline">\(\alpha\)</span> (or <span class="math inline">\(\alpha_1\)</span> in case of time-varying intercept) is constructed as
+<span class="math display">\[
+\alpha = a - \bar X^\beta_1\beta - \bar X_1^\delta\delta_1,
+\]</span>
+where <span class="math inline">\(\bar X^\beta\)</span> and <span class="math inline">\(\bar X^\delta\)</span> are the means of the corresponding predictors at first (non-fixed) time point. The prior is then defined for <span class="math inline">\(a\)</span> as
+<span class="math display">\[
+a \sim \mbox{N}(\bar y, 2\sigma_y),
+\]</span>
+where <span class="math inline">\(\bar y\)</span> is mean of the response variable values at first time point after applying the link function (except in case of categorical and multinomial response where <span class="math inline">\(\bar y\)</span> is set to zero).</p>
+</div>
+<div id="standard-deviation-parameters" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Standard deviation parameters</h2>
+<p>The prior for the standard deviation parameter <span class="math inline">\(\tau\)</span> of the random walk prior of the spline coefficients is half-normal with the standard deviation of <span class="math inline">\(2\sigma_y/\sigma_x\)</span> (with <span class="math inline">\(\sigma_x=1\)</span> in case of a time-varying intercept). The same prior distribution is also used for the the standard deviations of the random effects. Note that this prior can be too uninformative in some cases especially for the <span class="math inline">\(\tau\)</span> parameters.</p>
+</div>
+<div id="correlation-matrices" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Correlation matrices</h2>
+<p>The correlation matrix of the random effects uses a <span class="math inline">\(\mbox{LKJ}(1)\)</span> prior with the Cholesky parameterization, see Stan documentation of <code>lkj_cholesky_corr</code> for details<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+</div>
+<div id="family-specific-parameters" class="section level2" number="1.5">
+<h2><span class="header-section-number">1.5</span> Family-specific parameters</h2>
+<p>For standard deviation parameter of gaussian and student’s <span class="math inline">\(t\)</span> responses, we use exponential prior with a rate parameter <span class="math inline">\(\frac{1}{2\max(1,\sigma_y)}\)</span>. The degrees-of-freedom parameter of the student’s <span class="math inline">\(t\)</span>-distribution has a <span class="math inline">\(\mbox{Gamma}(2, 0.1)\)</span> prior, whereas for other family specific parameters we set <span class="math inline">\(\phi \sim \mbox{Exponential}(1)\)</span>.</p>
+</div>
+</div>
+<div id="defining-priors-of-dynamite-models" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Defining priors of dynamite models</h1>
+<p>While <code>dynamite()</code> can be used with the default prior choices, we recommend to check whether the defaults make sense for your particular problem and to odify them accordingly based on the domain knowledge.</p>
+<p>Any univariate unbounded continuous distributions supported by Stan can be used as a prior for univariate model parameters (in case the parameter is constrained to be positive, the distribution is automatically truncated). Naturally, any univariate distribution bounded to the positive real line can be used as a prior for parameters constrained to be positive (e.g., a standard deviation parameter).
+See the Stan function reference at for possible distributions. For custom priors, you should first get the default priors with the <code>get_priors()</code> function, and then modify the <code>priors</code> column of the obtained data frame before supplying it to the <code>dynamite()</code> function:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">obs</span>(y <span class="sc">~</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> z <span class="sc">+</span> <span class="fu">varying</span>(<span class="sc">~</span> x <span class="sc">+</span> <span class="fu">lag</span>(y)) <span class="sc">+</span> <span class="fu">random</span>(<span class="sc">~</span><span class="dv">1</span> <span class="sc">+</span> z), <span class="st">&quot;gaussian&quot;</span>) <span class="sc">+</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">random_spec</span>(<span class="at">correlated =</span> <span class="cn">TRUE</span>) <span class="sc">+</span> <span class="fu">splines</span>(<span class="at">df =</span> <span class="dv">20</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">get_priors</span>(f, <span class="at">data =</span> gaussian_example, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>, <span class="at">group =</span> <span class="st">&quot;id&quot;</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>p</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           parameter response                prior      type category</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1  sigma_nu_y_alpha        y       normal(0, 3.1)  sigma_nu         </span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      sigma_nu_y_z        y       normal(0, 6.7)  sigma_nu         </span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3           alpha_y        y     normal(1.5, 3.1)     alpha         </span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4       tau_alpha_y        y       normal(0, 3.1) tau_alpha         </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 6.7)      beta         </span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6         delta_y_x        y       normal(0, 3.1)     delta         </span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7    delta_y_y_lag1        y       normal(0, 1.8)     delta         </span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8           tau_y_x        y       normal(0, 3.1)       tau         </span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9      tau_y_y_lag1        y       normal(0, 1.8)       tau         </span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 10          sigma_y        y    exponential(0.65)     sigma         </span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 11             L_nu          lkj_corr_cholesky(1)         L</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p<span class="sc">$</span>prior[p<span class="sc">$</span>type <span class="sc">==</span> <span class="st">&quot;sigma_nu&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;normal(0, 1)&quot;</span> <span class="co"># change prior for sigma_nu</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>p<span class="sc">$</span>prior[p<span class="sc">$</span>parameter <span class="sc">==</span> <span class="st">&quot;sigma_y&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;student_t(3, 0, 2)&quot;</span> <span class="co">#prior for sigma_y</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>p</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           parameter response                prior      type category</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1  sigma_nu_y_alpha        y         normal(0, 1)  sigma_nu         </span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      sigma_nu_y_z        y         normal(0, 1)  sigma_nu         </span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3           alpha_y        y     normal(1.5, 3.1)     alpha         </span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4       tau_alpha_y        y       normal(0, 3.1) tau_alpha         </span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 6.7)      beta         </span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6         delta_y_x        y       normal(0, 3.1)     delta         </span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7    delta_y_y_lag1        y       normal(0, 1.8)     delta         </span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8           tau_y_x        y       normal(0, 3.1)       tau         </span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 9      tau_y_y_lag1        y       normal(0, 1.8)       tau         </span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 10          sigma_y        y   student_t(3, 0, 2)     sigma         </span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 11             L_nu          lkj_corr_cholesky(1)         L</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">dynamite</span>(f, <span class="at">data =</span> gaussian_example, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>,  <span class="at">group =</span> <span class="st">&quot;id&quot;</span>, <span class="at">priors =</span> p)</span></code></pre></div>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://CRAN.R-project.org/package=brms" class="uri">https://CRAN.R-project.org/package=brms</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://CRAN.R-project.org/package=rstanarm" class="uri">https://CRAN.R-project.org/package=rstanarm</a><a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://mc-stan.org/docs/functions-reference/cholesky-lkj-correlation-distribution.html" class="uri">https://mc-stan.org/docs/functions-reference/cholesky-lkj-correlation-distribution.html</a><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

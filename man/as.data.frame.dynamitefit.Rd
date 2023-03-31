@@ -92,21 +92,27 @@ Samples of the full correlation matrix can be extracted manually as
 Samples of the full correlation matrix can be extracted manually as
 \code{rstan::extract(fit$stanfit, pars = "corr_matrix_psi")} if necessary.
 \item \code{sigma}\cr Standard deviations of gaussian responses.
-\item \code{phi}\cr Dispersion parameters of negative binomial responses.
+\item \code{corr}\cr Pairwise correlations of multivariate gaussian responses.
+\item \code{phi}\cr Describes various distributional parameters, such as:
+\itemize{
+\item Dispersion parameter of the Negative Binomial distribution.
+\item Shape parameter of the Gamma distribution.
+\item Precision parameter of the Beta distribution.
+\item Degrees of freedom of the Student t-distribution.
+}
 \item \code{omega}\cr Spline coefficients of the regression coefficients \code{delta}.
 \item \code{omega_alpha}\cr Spline coefficients of time-varying \code{alpha}.
 \item \code{omega_psi}\cr Spline coefficients of the latent factors \code{psi}.
 }
 }
 \examples{
-results <- as.data.frame(
+as.data.frame(
   gaussian_example_fit,
   responses = "y",
-  types = "beta",
-  summary = FALSE
+  types = "beta"
 )
 
-#' # Basic summaries can be obtained automatically with summary = TRUE:
+# Basic summaries can be obtained automatically with summary = TRUE
 as.data.frame(
   gaussian_example_fit,
   responses = "y",
@@ -114,41 +120,35 @@ as.data.frame(
   summary = TRUE
 )
 
-#' # Time-varying coefficients delta
-as.data.frame(gaussian_example_fit,
+# Time-varying coefficients "delta"
+as.data.frame(
+  gaussian_example_fit,
   responses = "y",
   types = "delta",
   summary = TRUE
 )
 
-if (requireNamespace("dplyr") &&
-  requireNamespace("tidyr") &&
-  base::getRversion() >= "4.1.0") {
-
-  results |>
-    dplyr::group_by(parameter) |>
-    dplyr::summarise(mean = mean(value), sd = sd(value))
-
-  # Compute MCMC diagnostics via posterior package
-  # For this we need to first convert to wide format
-  # and then to draws_df object
-  results |>
-    dplyr::select(parameter, value, .iteration, .chain) |>
-    tidyr::pivot_wider(values_from = value, names_from = parameter) |>
-    posterior::as_draws() |>
-    posterior::summarise_draws()
-
-  as.data.frame(gaussian_example_fit,
-    responses = "y", types = "delta", summary = FALSE
-  ) |>
-    dplyr::select(parameter, value, time, .iteration, .chain) |>
-    tidyr::pivot_wider(
-      values_from = value,
-      names_from = c(parameter, time),
-      names_sep = "_t="
-    ) |>
-    posterior::as_draws() |>
-    posterior::summarise_draws()
-}
+# Obtain summaries for a specific parameters
+as.data.frame(
+  gaussian_example_fit,
+  parameters = c("tau_y_x", "sigma_y"),
+  summary = TRUE
+)
 
 }
+\seealso{
+Model outputs
+\code{\link{as.data.table.dynamitefit}()},
+\code{\link{as_draws_df.dynamitefit}()},
+\code{\link{coef.dynamitefit}()},
+\code{\link{confint.dynamitefit}()},
+\code{\link{dynamite}()},
+\code{\link{get_code}()},
+\code{\link{get_data}()},
+\code{\link{get_parameter_dims}()},
+\code{\link{get_parameter_names}()},
+\code{\link{get_parameter_types}()},
+\code{\link{ndraws.dynamitefit}()},
+\code{\link{nobs.dynamitefit}()}
+}
+\concept{output}

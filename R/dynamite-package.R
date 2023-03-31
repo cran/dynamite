@@ -29,7 +29,7 @@
 #' @importFrom stats formula model.matrix model.matrix.lm na.exclude
 #' @importFrom stats quantile coef setNames as.formula fitted na.pass terms
 #' @importFrom stats plogis rbinom reformulate rnbinom rnorm rpois runif sd
-#' @importFrom stats nobs update
+#' @importFrom stats nobs qlogis update
 #'
 #' @srrstats {G2.0, G2.0a, G2.1, G2.1a, G2.2, G2.3, G2.3a, G2.3b}
 #'   Input types are asserted and appropriately restricted and tested
@@ -56,6 +56,7 @@ NULL
 #' intercept, and time-invariant effect of covariate z. The time-varying
 #' coefficients vary according to a spline with 20 degrees of freedom.
 #'
+#' @family examples
 #' @source The data was generated according to a script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example.R}
 #' @format A data frame with 3000 rows and 5 variables:
@@ -94,16 +95,42 @@ NULL
 #' )
 #' }
 #' Note the very small number of samples due to size restrictions on CRAN.
+#' @family examples
 #' @source The data was generated according to a script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example_fit.R}
 #' @format A `dynamitefit` object.
 "gaussian_example_fit"
+
+#' Model Fit for the time-varying example in the `dynamite_simulation` Vignette
+#'
+#' A `dynamitefit` object obtained by running `dynamite` with the
+#' `"Fixed_param"` algorithm on the specified `inits` in the example.
+#' \preformatted{
+#' set.seed(1)
+#' library(dynamite)
+#' gaussian_simulation_fit <- dynamite(
+#'   dformula = f,
+#'   data = d,
+#'   time = "time",
+#'   group = "id",
+#'   chains = 1,
+#'   iter = 1,
+#'   algorithm = "Fixed_param",
+#'   init = list(init),
+#' )
+#' }
+#' @family examples
+#' @source The data was generated according to a script in
+#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_simulation_fit.R}
+#' @format A `dynamitefit` object.
+"gaussian_simulation_fit"
 
 #' Simulated Multivariate Panel Data
 #'
 #' A simulated multichannel data containing multiple individuals with multiple
 #' response variables of different distributions.
 #'
+#' @family examples
 #' @source The data was generated according to a script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/multichannel_example.R}
 #' @format A data frame with 3000 rows and 5 variables:
@@ -143,6 +170,7 @@ NULL
 #' )
 #' }
 #' Note the small number of samples due to size restrictions on CRAN.
+#' @family examples
 #' @source Script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/multichannel_example_fit.R}
 #' @format A `dynamitefit` object.
@@ -153,6 +181,7 @@ NULL
 #' A simulated data containing multiple individuals with two categorical
 #' response variables.
 #'
+#' @family examples
 #' @source The data was generated according to a script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/categorical_example.R}
 #' @format A data frame with 2000 rows and 5 variables:
@@ -186,51 +215,55 @@ NULL
 #' )
 #' }
 #' Note the small number of samples due to size restrictions on CRAN.
+#' @family examples
 #' @source Script in
 #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/categorical_example_fit.R}
 #' @format A `dynamitefit` object.
 "categorical_example_fit"
-#' Simulated Latent Factor Model Panel Data
-#'
-#' A simulated single-channel data containing multiple individuals whose
-#' trajectories are defined by a latent factor and random intercept terms.
-#'
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example.R}
-#' @format A data frame with 2000 rows and 3 variables:
-#' \describe{
-#'  \item{y}{A continuos variable.}
-#'  \item{id}{Variable defining individuals (1 to 100).}
-#'  \item{time}{Variable defining the time point of the measurement (1 to 20).}
-#' }
-"latent_factor_example"
 
-#' Model Fit for the Simulated Latent Factor Data
-#'
-#' A `dynamitefit` object obtained by running `dynamite` on the
-#' `latent_factor_example` dataset as
-#' \preformatted{
-#' set.seed(1)
-#' library(dynamite)
-#' latent_factor_example_fit <- dynamite(
-#'   obs(y ~ 1, family = "gaussian") + lfactor() + splines(df = 10),
-#'   data = latent_factor_example,
-#'   time = "time",
-#'   group = "id",
-#'   iter = 2000,
-#'   warmup = 1000,
-#'   thin = 10,
-#'   chains = 2,
-#'   cores = 2,
-#'   refresh = 0,
-#'   save_warmup = FALSE,
-#'   pars = c("omega_alpha_1_y", "omega_raw_alpha_y", "omega_raw_psi", "L_lf",
-#'     "lambda_raw_y", "lambda_std_y"),
-#'   include = FALSE
-#' )
-#' }
-#' Note the very small number of samples due to size restrictions on CRAN.
-#' @source Script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example_fit.R}
-#' @format A `dynamitefit` object.
-"latent_factor_example_fit"
+# #' Simulated Latent Factor Model Panel Data
+# #'
+# #' A simulated single-channel data containing multiple individuals whose
+# #' trajectories are defined by a latent factor and random intercept terms.
+# #'
+# #' @family examples
+# #' @source The data was generated according to a script in
+# #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example.R}
+# #' @format A data frame with 2000 rows and 3 variables:
+# #' \describe{
+# #'  \item{y}{A continuos variable.}
+# #'  \item{id}{Variable defining individuals (1 to 100).}
+# #'  \item{time}{Variable defining the time point of the measurement (1 to 20).}
+# #' }
+# "latent_factor_example"
+
+# #' Model Fit for the Simulated Latent Factor Data
+# #'
+# #' A `dynamitefit` object obtained by running `dynamite` on the
+# #' `latent_factor_example` dataset as
+# #' \preformatted{
+# #' set.seed(1)
+# #' library(dynamite)
+# #' latent_factor_example_fit <- dynamite(
+# #'   obs(y ~ 1, family = "gaussian") + lfactor() + splines(df = 10),
+# #'   data = latent_factor_example,
+# #'   time = "time",
+# #'   group = "id",
+# #'   iter = 2000,
+# #'   warmup = 1000,
+# #'   thin = 10,
+# #'   chains = 2,
+# #'   cores = 2,
+# #'   refresh = 0,
+# #'   save_warmup = FALSE,
+# #'   pars = c("omega_alpha_1_y", "omega_raw_alpha_y", "omega_raw_psi", "L_lf",
+# #'     "lambda_raw_y", "lambda_std_y"),
+# #'   include = FALSE
+# #' )
+# #' }
+# #' Note the very small number of samples due to size restrictions on CRAN.
+# #' @family examples
+# #' @source Script in
+# #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example_fit.R}
+# #' @format A `dynamitefit` object.
+# "latent_factor_example_fit"

@@ -4,13 +4,9 @@ run_extended_tests <- identical(Sys.getenv("DYNAMITE_EXTENDED_TESTS"), "true")
 
 test_that("parameters of the Grunfield model are recovered", {
   skip_if_not(run_extended_tests)
-  library("plm")
 
-  data(Grunfeld, package = "plm")
-  fit_plm <- plm(inv ~ value + capital,
-    data = Grunfeld,
-    index = c("firm", "year"), effect = "individual", model = "within"
-  )
+  # data from plm package
+  Grunfeld <- readRDS("grunfeld.rds")
 
   set.seed(1)
   # dynamite defines prior for the intercept based on the mean at the first time
@@ -23,14 +19,32 @@ test_that("parameters of the Grunfield model are recovered", {
   )
   # set very vague priors
   p$prior[] <- rep("normal(0, 1000)", nrow(p))
-  fit <- dynamite(f,
-    Grunfeld, time = "year", group = "firm",
-    refresh = 0, seed = 1,
-    chains = 2, cores = 2, iter = 20000, warmup = 1000
+  fit <- dynamite(
+    dformula = f,
+    data = Grunfeld,
+    time = "year",
+    group = "firm",
+    priors = p,
+    refresh = 0,
+    seed = 1,
+    chains = 2,
+    cores = 2,
+    iter = 20000,
+    warmup = 1000
   )
 
-  expect_equal(coef(fit_plm), coef(fit)$mean[2:3],
-    tolerance = 0.01, ignore_attr = TRUE
+  # Not run, values are stored
+  # fit_plm <- plm(inv ~ value + capital,
+  #   data = Grunfeld,
+  #   index = c("firm", "year"), effect = "individual", model = "within"
+  # )
+  #plm_est <- dput(coef(fit_plm))
+  plm_est <- c(value = 0.110123804120719, capital = 0.310065341300139)
+  expect_equal(
+    plm_est,
+    coef(fit)$mean[2:3],
+    tolerance = 0.01,
+    ignore_attr = TRUE
   )
 
   # Not run, values are stored
@@ -56,8 +70,12 @@ test_that("parameters of the Grunfield model are recovered", {
     posterior::default_summary_measures()
   )
   for (i in 1:15) {
-    expect_equal(sumr$mean[i], brms_est[i],
-      tolerance = 100 * sumr$mcse_mean[i], label = sumr$variable[i]
+    expect_equal(
+      sumr$mean[i],
+      brms_est[i],
+      tolerance = 100 * sumr$mcse_mean[i],
+      label = sumr$variable[i],
+      ignore_attr = TRUE
     )
   }
 })

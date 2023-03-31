@@ -21,7 +21,7 @@ initialize_deterministic <- function(data, dd, dlp, dld, dls) {
     )
     data[, (dlp[[i]]$response) := NA]
   }
-  rhs_ls <- get_predictors(dls)
+  rhs_ls <- get_rhs(dls)
   for (i in seq_along(dls)) {
     stopifnot_(
       rhs_ls[i] %in% names(data),
@@ -39,7 +39,7 @@ initialize_deterministic <- function(data, dd, dlp, dld, dls) {
     data.table::set(x = data, j = dd[[i]]$response, value = past)
     data[, dd[[i]]$response := NA]
   }
-  rhs_ld <- get_predictors(dld)
+  rhs_ld <- get_rhs(dld)
   ro_ld <- attr(dld, "rank_order")
   init <- has_past(dld)
   for (k in ro_ld) {
@@ -98,9 +98,9 @@ assign_initial_values <- function(data, idx, dd, dlp, dld, dls,
   resp_lp <- attr(dlp, "original_response")
   k_lp <- attr(dlp, "original_shift")
   lhs_ld <- get_responses(dld)
-  rhs_ld <- get_predictors(dld)
+  rhs_ld <- get_rhs(dld)
   lhs_ls <- get_responses(dls)
-  rhs_ls <- get_predictors(dls)
+  rhs_ls <- get_rhs(dls)
   cl <- get_quoted(dd)
   for (i in ro_lp) {
     k <- k_lp[i]
@@ -152,8 +152,8 @@ assign_deterministic <- function(data, idx, cl) {
 
 #' Evaluate a Definition and Assign the Value of a Deterministic Channel
 #'
-#' @param data \[`data.table`]\cr Data table to assign the values into.
-#' @param data_obs \[`data.table`]\cr Data table containing observed predictors
+#' @param simulated \[`data.table`]\cr Data table to assign the values into.
+#' @param sub \[`data.table`]\cr Subset of data to evaluate the channel.
 #' @param idx \[`integer()`]\cr A vector of indices to assign values into.
 #' @param idx_obs \[`integer()`]\cr A vector of indices of predictor values.
 #' @param .deterministic_channel_name_ \[`character(1)`]\cr
@@ -161,18 +161,16 @@ assign_deterministic <- function(data, idx, cl) {
 #' @param .deterministic_channel_definition_ \[`language`]\cr
 #'   A quoted expression defining the channel.
 #' @noRd
-assign_deterministic_predict <- function(data, data_obs, idx, idx_obs,
+assign_deterministic_predict <- function(simulated, sub, idx,
                                          .deterministic_channel_name_,
                                          .deterministic_channel_definition_) {
-  data_resp <- data[idx, ]
-  data_pred <- data_obs[idx_obs, ]
-  sub <- cbind(data_resp, data_pred)
+
   sub[,
     (.deterministic_channel_name_) :=
       eval(.deterministic_channel_definition_)
   ]
   data.table::set(
-    x = data,
+    x = simulated,
     i = idx,
     j = .deterministic_channel_name_,
     value = sub[[.deterministic_channel_name_]]
@@ -244,9 +242,9 @@ evaluate_deterministic <- function(dformulas, data, group_var, time_var) {
     )
     ro_ls <- seq_along(dls)
     lhs_ld <- get_responses(dld)
-    rhs_ld <- get_predictors(dld)
+    rhs_ld <- get_rhs(dld)
     lhs_ls <- get_responses(dls)
-    rhs_ls <- get_predictors(dls)
+    rhs_ls <- get_rhs(dls)
     idx <- idx + fixed + 1L
     for (i in seq.int(fixed + 2L, n_time)) {
       idx <- idx + 1L

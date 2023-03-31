@@ -16,6 +16,7 @@ dynamite(
   backend = "rstan",
   verbose = TRUE,
   verbose_stan = FALSE,
+  stanc_options = list("O1"),
   debug = NULL,
   ...
 )
@@ -66,6 +67,11 @@ if set to \code{FALSE}. Defaults to \code{TRUE}.}
 \item{verbose_stan}{[\code{logical(1)}]\cr This is the \code{verbose} argument for
 \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}}. Defaults to \code{FALSE}.}
 
+\item{stanc_options}{[\code{list()}]\cr This is the \code{stanc_options} argument
+passed to the compile method of a \code{CmdStanModel} object via
+\code{\link[cmdstanr:cmdstan_model]{cmdstanr::cmdstan_model()}} when \code{backend = "cmdstanr"}.
+Defaults to \code{list("O1")} to enable level one compiler optimizations.}
+
 \item{debug}{[\code{list()}]\cr A named list of form \code{name = TRUE} indicating
 additional objects in the environment of the \code{dynamite} function which are
 added to the return object. Additionally, values \code{no_compile = TRUE} and
@@ -115,7 +121,7 @@ Bayesian inference. The \pkg{dynamite} package supports a wide range of
 distributions and allows the user to flexibly customize the priors for the
 model parameters. The dynamite model is specified using standard \R formula
 syntax via \code{\link[=dynamiteformula]{dynamiteformula()}}. For more information and examples,
-see 'Details' and the package vignette.
+see 'Details' and the package vignettes.
 
 The \code{formula} method returns the model definition as a quoted expression.
 
@@ -129,28 +135,6 @@ model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame
 \code{summary = TRUE}.
 }
 \details{
-Any univariate unbounded continuous distributions supported by Stan can be
-used as a prior for model parameters (the distribution is automatically
-truncated to positive side for constrained parameters). In addition, any
-univariate distribution bounded to the positive real line can be used as a
-prior for parameters constrained to be positive.
-See Stan function reference at
-\url{https://mc-stan.org/users/documentation/} for details. For custom
-priors, you should first get the default priors with \code{\link[=get_priors]{get_priors()}}
-function, and then modify the \code{priors} column of the obtained data frame
-before supplying it to the \code{dynamite} function.
-
-The default priors for regression coefficients are based on the standard
-deviation of the covariates at the first non-fixed time point. In case this
-is 0 or NA, it is transformed to (arbitrary) 0.5. The final prior is then
-normal distribution with zero mean and two times this standard deviation.
-
-The prior for the correlation structure of the random intercepts is defined
-via the Cholesky decomposition of the correlation matrix, as
-\code{lkj_corr_cholesky(1)}. See
-\url{https://mc-stan.org/docs/functions-reference/cholesky-lkj-correlation-distribution.html}
-for details.
-
 The best-case scalability of \code{dynamite} in terms of data size should be
 approximately linear in terms of number of time points and and number of
 groups, but as wall-clock time of the MCMC algorithms provided by Stan can
@@ -182,7 +166,40 @@ summary(gaussian_example_fit,
 
 }
 \references{
+Santtu Tikka and Jouni Helske (2023). \code{dynamite}: An \R Package for Dynamic
+Multivariate Panel Models. arXiv preprint,
+\url{https://arxiv.org/abs/2302.01607}.
+
 Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
 from Panel Data with Dynamic Multivariate Panel Models. SocArxiv preprint,
 \url{https://osf.io/preprints/socarxiv/mdwu5/}.
 }
+\seealso{
+Model fitting
+\code{\link{get_priors}()},
+\code{\link{update.dynamitefit}()}
+
+Model formula construction
+\code{\link{dynamiteformula}()},
+\code{\link{lags}()},
+\code{\link{lfactor}()},
+\code{\link{random_spec}()},
+\code{\link{splines}()}
+
+Model outputs
+\code{\link{as.data.frame.dynamitefit}()},
+\code{\link{as.data.table.dynamitefit}()},
+\code{\link{as_draws_df.dynamitefit}()},
+\code{\link{coef.dynamitefit}()},
+\code{\link{confint.dynamitefit}()},
+\code{\link{get_code}()},
+\code{\link{get_data}()},
+\code{\link{get_parameter_dims}()},
+\code{\link{get_parameter_names}()},
+\code{\link{get_parameter_types}()},
+\code{\link{ndraws.dynamitefit}()},
+\code{\link{nobs.dynamitefit}()}
+}
+\concept{fitting}
+\concept{formulas}
+\concept{output}

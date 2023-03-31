@@ -50,8 +50,12 @@ distributions for the observations:
 \item Categorical: \code{categorical} (with a softmax link using the first category
 as reference). See the documentation of the \code{categorical_logit_glm} in the
 Stan function reference manual (https://mc-stan.org/users/documentation/).
+\item Multinomial: \code{multinomial} (softmax link, first category is reference).
 \item Gaussian: \code{gaussian} (identity link, parameterized using mean and standard
 deviation).
+\item Multivariate Gaussian: \code{mvgaussian} (identity link, parameterized using
+mean vector, standard deviation vector and the Cholesky decomposition of
+the correlation matrix).
 \item Poisson: \code{poisson} (log-link, with an optional known offset variable).
 \item Negative-binomial: \code{negbin} (log-link, using mean and dispersion
 parameterization, with an optional known offset variable). See the
@@ -61,6 +65,8 @@ documentation on \code{NegBinomial2} in the Stan function reference manual.
 \item Exponential: \code{exponential} (log-link).
 \item Gamma: \code{gamma} (log-link, using mean and shape parameterization).
 \item Beta: \code{beta} (logit-link, using mean and precision parameterization).
+\item Student t: \code{student} (identity link, parametrized using degrees of
+freedon, location and scale)
 }
 
 The models in the \pkg{dynamite} package are defined by combining the
@@ -73,6 +79,22 @@ first we declare that \code{y} is a gaussian variable depending on a previous
 value of \code{x} (\code{lag(x)}), and then we add a second channel declaring \code{x} as
 Poisson distributed depending on some exogenous variable \code{z}
 (for which we do not define any distribution).
+
+Number of trials for binomial channels should be defined via a \code{trials}
+model component, e.g., \code{obs(y ~ x + trials(n), family = "binomial")},
+where \code{n} is a data variable defining the number of trials. For multinomial
+channels, the number of trials is automatically defined to be the sum
+of the observations over the categories, but can also be defined using
+the \code{trials} component, for example for prediction.
+
+Multivariate channels are defined by providing a single formula for all
+components or by providing component-specific formulas separated by a \code{|}.
+The response variables that correspond to the components should be joined by
+\code{c()}. For instance, the following would define \code{c(y1, y2)} as multivariate
+gaussian with \code{x} as a predictor for the mean of the first component and
+\code{x} and \code{z} as predictors for the mean of the second component:
+\code{obs(c(y1, y2) ~ x | x + z, family = "mvgaussian")}. A multinomial channel
+should only have a single formula.
 
 In addition to declaring response variables via \code{obs}, we can also use
 the function \code{aux} to define auxiliary channels which are deterministic
@@ -122,10 +144,10 @@ using the special syntax \code{random()} similarly as \code{varying()}. For exam
 \code{random(~1)} leads to a model where in addition to the common intercept,
 each individual/group has their own intercept with zero-mean normal prior and
 unknown standard deviation analogously with the typical mixed models. An
-additional model component \code{\link[=random_spec]{random_spec()}} can be used to define whether the
-random effects are allowed to correlate within and across channels and
-whether to use centered or noncentered parameterization for the random
-effects.
+additional model component \code{\link[=random_spec]{random_spec()}} can be used to define
+whether the random effects are allowed to correlate within and across
+channels and whether to use centered or noncentered parameterization for
+the random effects.
 }
 \examples{
 # A single gaussian response channel with a time-varying effect of 'x',
@@ -164,3 +186,12 @@ x <- obs(y ~ x + random(~ 1 + lag(d)), family = "gaussian") +
 print(x)
 
 }
+\seealso{
+Model formula construction
+\code{\link{dynamite}()},
+\code{\link{lags}()},
+\code{\link{lfactor}()},
+\code{\link{random_spec}()},
+\code{\link{splines}()}
+}
+\concept{formulas}

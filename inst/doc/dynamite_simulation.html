@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Simulating data from a dynamic multivariate panel model</title>
+
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Simulating data from a dynamic multivariate panel model</h1>
+
+
+
+<div id="using-dynamite-to-generate-panel-data" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Using dynamite to generate panel data</h1>
+<p>Dynamic multivariate panel models (DMPM) are conceptually challenging due to their multichannel and multivariate nature. These models can also contain a large number of various parameters, especially when the model contains time-varying effects or group-level random effects. This poses a challenge for users that wish to generate data according to such models, as manual specification of the parameters becomes cumbersome.</p>
+<p>While the main purpose of <code>dynamite</code> is to fit dynamic multivariate panel models to data and to obtain predictions, the package can fortunately also be used to generate data according to a specified model. The used need only specify the model formula, which along with data on the fixed covariates can be used the obtain the dimensions of all parameters in the model via the <code>get_parameter_dims()</code> function. As the name suggests, this function will return the names and dimensions of all parameters in the model which need to be specified for data simulation. However, in practice it is not necessary to define values for all parameters, as Stan will automatically generate random initial values for any missing parameters. See the documentation of <code>as.data.frame.dynamitefit</code> for more details on the various parameters.</p>
+<p>After the user has specified the parameter values, they should be supplied to <code>dynamite()</code> as a list via the argument <code>init</code>, which will be used by Stan to initialize the parameters in the underlying Stan model. Furthermore, the number of iterations should be set to <code>1</code> and the simulation algorithm to <code>&quot;Fixed_param&quot;</code> so that no posterior sampling is carried out. This will result in a <code>dynamitefit</code> object that can be subsequently used in <code>predict</code> to obtain the desired simulated data.</p>
+</div>
+<div id="model-with-categorical-responses" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Model with categorical responses</h1>
+<p>As an illustration, the approach described in this vignette was used to generate the package data <code>categorical_example</code> as follows. First, we define the data for the first time index:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dynamite)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> 100L</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> 20L</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">sample</span>(<span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>, <span class="st">&quot;c&quot;</span>)), <span class="at">size =</span> n_id, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> <span class="fu">sample</span>(<span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>)), <span class="at">size =</span> n_id, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="dv">1</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">seq_len</span>(n_id)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Based on this initial data, our goal is to generate categorical responses for two channels, <code>y</code> and <code>x</code>, for 100 individuals over 20 time points. We expand the initial data with missing values for the remaining time points. We also add a random noise variable <code>z</code> that is observed for each individual at each time index.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">right_join</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  d,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n_time), <span class="at">each =</span> n_id),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">id =</span> <span class="fu">seq_len</span>(n_id)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;time&quot;</span>, <span class="st">&quot;id&quot;</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>z <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(d))</span></code></pre></div>
+<p>Next, we define the model formula for the DMPM of the response variables</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">obs</span>(x <span class="sc">~</span> z <span class="sc">+</span> <span class="fu">lag</span>(x) <span class="sc">+</span> <span class="fu">lag</span>(y), <span class="at">family =</span> <span class="st">&quot;categorical&quot;</span>) <span class="sc">+</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">obs</span>(y <span class="sc">~</span> z <span class="sc">+</span> <span class="fu">lag</span>(x) <span class="sc">+</span> <span class="fu">lag</span>(y), <span class="at">family =</span> <span class="st">&quot;categorical&quot;</span>)</span></code></pre></div>
+<p>Based on this formula, we now need to define the values of the parameters of the model that it implies. First, we must determine what the parameters are called and what their dimensions are via <code>get_parameter_dims()</code>.
+For <code>dynamiteformula</code> objects, this method should be provided the same arguments as <code>dynamite</code>: the model formula, the data, the time index variable and the optional grouping variable. This function fits a temporary Stan model to define the required parameters, meaning that it may take a few seconds to obtain the result.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">get_parameter_dims</span>(<span class="at">x =</span> f, <span class="at">data =</span> d, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>, <span class="at">group =</span> <span class="st">&quot;id&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; $beta_x_B
+#&gt; [1] 5
+#&gt; 
+#&gt; $a_x_B
+#&gt; [1] 1
+#&gt; 
+#&gt; $beta_x_C
+#&gt; [1] 5
+#&gt; 
+#&gt; $a_x_C
+#&gt; [1] 1
+#&gt; 
+#&gt; $beta_y_b
+#&gt; [1] 5
+#&gt; 
+#&gt; $a_y_b
+#&gt; [1] 1
+#&gt; 
+#&gt; $beta_y_c
+#&gt; [1] 5
+#&gt; 
+#&gt; $a_y_c
+#&gt; [1] 1</code></pre>
+<p>In other words, all <code>beta</code> parameters are vectors of length 5, and the <code>a</code> parameters are scalars. The <code>a</code> type parameters are centered versions of the intercepts <code>alpha</code> at the first time index (see the package vignette on default priors for more information: <code>vignette(&quot;dynamite_priors&quot;, package = &quot;dynamite&quot;)</code>). Now we have the required information to specify the values for the parameters of the model. The actual values to be chosen naturally depends on the scenario and is up to the user. We set the following values for the simulation as the list <code>init</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>init <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_x_B =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="fl">0.8</span>, <span class="fl">0.2</span>, <span class="dv">0</span>, <span class="dv">0</span>),</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">a_x_B =</span> <span class="sc">-</span><span class="fl">0.1</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_x_C =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.5</span>, <span class="dv">2</span>, <span class="fl">0.2</span>, <span class="fl">0.1</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">a_x_C =</span> <span class="fl">0.2</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_y_b =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="fl">0.8</span>, <span class="fl">0.3</span>, <span class="fl">0.5</span>),</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">a_y_b =</span> <span class="fl">0.1</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_y_c =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.2</span>, <span class="dv">0</span>, <span class="fl">0.3</span>, <span class="sc">-</span><span class="fl">0.5</span>),</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">a_y_c =</span> <span class="sc">-</span><span class="fl">0.5</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>We fit the model with these fixed values. Note that we wrap our <code>init</code> object in another list, because the <code>init</code> argument is chain specific, and thus the first element provides initial values to the first (and in this case only) chain.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">dynamite</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dformula =</span> f,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> d,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">group =</span> <span class="st">&quot;id&quot;</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">1</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="dv">1</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">algorithm =</span> <span class="st">&quot;Fixed_param&quot;</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> <span class="fu">list</span>(init),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>The <code>categorical_example</code> data of the package can now be obtained with a simple call to <code>predict()</code>. Finally, we simply rename the simulated values of the responses, and select the variables of interest.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>categorical_example <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">type =</span> <span class="st">&quot;response&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">x =</span> x_new, <span class="at">y =</span> y_new) <span class="sc">|&gt;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(id, time, x, y, z)</span></code></pre></div>
+</div>
+<div id="model-with-time-varying-effects" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Model with time-varying effects</h1>
+<p>As mentioned earlier, simulation from a model with time-varying effects is more challenging due to the inclusion of p-splines which means that we must also define initial values for the spline coefficients. We consider a single-channel model with a gaussian response that has a time-varying effect of a single covariate.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;dynamite&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> 8L</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> 20L</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">rnorm</span>(n_id, <span class="dv">1</span>, <span class="fl">0.5</span>),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="dv">1</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">id =</span> <span class="fu">seq_len</span>(n_id)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>We again expand the data with missing values to the full time period and add a fixed covariate <code>x</code>.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">right_join</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  d,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">time =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n_time), <span class="at">each =</span> n_id),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">id =</span> <span class="fu">seq_len</span>(n_id)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;time&quot;</span>, <span class="st">&quot;id&quot;</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(d))</span></code></pre></div>
+<p>Next, we define the model formula for the response variable <code>y</code> of the DMPM and define the splines of the time-varying effects.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>f <span class="ot">&lt;-</span> <span class="fu">obs</span>(y <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">varying</span>(<span class="sc">~</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> x <span class="sc">+</span> <span class="fu">lag</span>(y)), <span class="at">family =</span> <span class="st">&quot;gaussian&quot;</span>) <span class="sc">+</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">splines</span>(<span class="at">df =</span> <span class="dv">10</span>)</span></code></pre></div>
+<p>Again, we apply the <code>get_parameter_dims()</code> function to get the model parameters and their dimensions.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">get_parameter_dims</span>(<span class="at">x =</span> f, <span class="at">data =</span> d, <span class="at">time =</span> <span class="st">&quot;time&quot;</span>, <span class="at">group =</span> <span class="st">&quot;id&quot;</span>)</span></code></pre></div>
+<pre><code>#&gt; $omega_y
+#&gt; [1]  2 10
+#&gt; 
+#&gt; $tau_y
+#&gt; [1] 2
+#&gt; 
+#&gt; $a_y
+#&gt; [1] 1
+#&gt; 
+#&gt; $sigma_y
+#&gt; [1] 1</code></pre>
+<p>Here, <code>omega_y</code> defines the spline coefficients for the time-varying effects. This parameter is a 2 by 10 matrix because we have 2 time-varying effects, <code>x</code> and <code>lag(y)</code>, and the degrees of freedom of the splines is 10. The parameter <code>tau_y</code> defines the standard deviations of the random walk priors for the two time-varying effects. We choose the following values for the model parameters:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>init <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">omega_y =</span> <span class="fu">rbind</span>(</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="fl">0.0</span>,  <span class="fl">0.2</span>, <span class="sc">-</span><span class="fl">0.8</span>, <span class="fl">1.0</span>, <span class="fl">0.5</span>, <span class="fl">0.0</span>, <span class="fl">0.1</span>, <span class="sc">-</span><span class="fl">0.2</span>, <span class="sc">-</span><span class="fl">0.5</span>,  <span class="fl">0.1</span>),</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="fl">0.3</span>, <span class="sc">-</span><span class="fl">0.4</span>,  <span class="fl">0.7</span>, <span class="fl">0.5</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>,  <span class="fl">0.6</span>,  <span class="fl">0.9</span>, <span class="sc">-</span><span class="fl">0.8</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau_y =</span> <span class="fu">c</span>(<span class="fl">1.0</span>, <span class="fl">0.75</span>),</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">a_y =</span> <span class="sc">-</span><span class="dv">1</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">sigma_y =</span> <span class="fl">0.5</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>We fit the model with these fixed values.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>gaussian_simulation_fit <span class="ot">&lt;-</span> <span class="fu">dynamite</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">dformula =</span> f,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> d,</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">time =</span> <span class="st">&quot;time&quot;</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">group =</span> <span class="st">&quot;id&quot;</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">1</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter =</span> <span class="dv">1</span>,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">algorithm =</span> <span class="st">&quot;Fixed_param&quot;</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> <span class="fu">list</span>(init),</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Finally, we generate the data using <code>predict()</code>.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">predict</span>(gaussian_simulation_fit, <span class="at">type =</span> <span class="st">&quot;response&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">y =</span> y_new) <span class="sc">|&gt;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(id, time, x, y)</span></code></pre></div>
+<p>We can plot individual trajectories of <code>y</code> over time to visualize the data.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;ggplot2&quot;</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>sim <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(id <span class="sc">&lt;</span> <span class="dv">9</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(time, y, <span class="at">color =</span> <span class="fu">factor</span>(id))) <span class="sc">+</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code></pre></div>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

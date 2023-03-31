@@ -38,7 +38,7 @@ A \code{draws_df} object.
 A \code{draws_df} object.
 }
 \description{
-Converts the output from \code{\link[=dynamite]{dynamite()}} call to a
+Converts the output from a \code{\link[=dynamite]{dynamite()}} call to a
 \code{draws_df} format of the \pkg{posterior} package, enabling the use
 of diagnostics and plotting methods of \pkg{posterior} and \pkg{bayesplot}
 packages. Note that this function returns variables in a wide format,
@@ -46,8 +46,8 @@ whereas \code{\link[=as.data.frame]{as.data.frame()}} uses the long format.
 }
 \details{
 You can use the arguments \code{parameters}, \code{responses} and \code{types} to extract
-only a subset of the model parameters (i.e., only certain types of parameters
-related to a certain response variable).
+only a subset of the model parameters (i.e., only certain types of
+parameters related to a certain response variable).
 
 See potential values for the types argument in
 \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}} and
@@ -57,4 +57,23 @@ argument.
 \examples{
 as_draws(gaussian_example_fit, types = c("sigma", "beta"))
 
+# Compute MCMC diagnostics using the posterior package
+posterior::summarise_draws(as_draws(gaussian_example_fit))
+
 }
+\seealso{
+Model outputs
+\code{\link{as.data.frame.dynamitefit}()},
+\code{\link{as.data.table.dynamitefit}()},
+\code{\link{coef.dynamitefit}()},
+\code{\link{confint.dynamitefit}()},
+\code{\link{dynamite}()},
+\code{\link{get_code}()},
+\code{\link{get_data}()},
+\code{\link{get_parameter_dims}()},
+\code{\link{get_parameter_names}()},
+\code{\link{get_parameter_types}()},
+\code{\link{ndraws.dynamitefit}()},
+\code{\link{nobs.dynamitefit}()}
+}
+\concept{output}

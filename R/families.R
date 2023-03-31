@@ -5,7 +5,7 @@
 #' @param name \[`character(1)`]\cr Name of the family.
 #' @noRd
 dynamitefamily <- function(name) {
-  name <- tolower(as.character(name)[1])
+  name <- tolower(as.character(name)[1L])
   stopifnot_(
     is_supported(name),
     "{.val {name}} is not a supported family."
@@ -26,24 +26,53 @@ is.dynamitefamily <- function(x) {
 
 #' Check If a Family Is Supported
 #'
-#' @param \[`character(1)`]\cr Name of the family.
+#' @param name \[`character(1)`]\cr Name of the family.
 #' @noRd
 is_supported <- function(name) {
   name %in% supported_families
+}
+
+#' Check If a Family Is Multivariate
+#'
+#' @param x \[`dynamitefamily`]\cr A family object.
+#' @noRd
+is_multivariate <- function(x) {
+  x$name %in% c("mvgaussian", "multinomial")
 }
 
 supported_families <- c(
   "binomial",
   "bernoulli", # separate as Stan has more efficient pmf for it
   "categorical",
+  "multinomial",
   "negbin",
   "gaussian",
+  "mvgaussian",
   "poisson",
   "deterministic",
   "gamma",
   "exponential",
-  "beta"
+  "beta",
+  "student"
 )
+
+#' Test If Multivariate Family Uses Univariate Components
+#'
+#' @param x \[`dynamitefamily`]\cr A family object.
+#' @noRd
+has_univariate <- function(x) {
+  x$name %in% setdiff(supported_families, "multinomial")
+}
+
+#' Get Univariate Version of a Multivariate Family
+#'
+#' @param x \[`dynamitefamily`]\cr A family object.
+#' @noRd
+get_univariate <- function(x) {
+  out <- stats::setNames(supported_families, supported_families)
+  out["mvgaussian"] <- "gaussian"
+  unname(out[x$name])
+}
 
 # Generate `family_` and `is_family` convenience functions
 # for all supported families

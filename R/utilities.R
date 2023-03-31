@@ -56,6 +56,21 @@ drop_terms <- function(termobj, dropx) {
   }
 }
 
+#' Faster Column Bind for `data.table` Objects
+#'
+#' @param ... `data.table` objects.
+#' @noRd
+cbind_datatable <- function(...) {
+  data.table::setattr(
+    do.call(c, list(...)), "class", c("data.table", "data.frame")
+  )
+}
+
+#* Data Table rbindlist With Data Frame Output
+rbindlist_ <- function(x) {
+  data.table::setDF(data.table::rbindlist(x))
+}
+
 #' Drops Variables from the Data That Are Not Used by Any Model Formula
 #'
 #' @inheritParams dynamite
@@ -217,7 +232,7 @@ indenter_ <- function(m = 2L) {
   }
 }
 
-#' Fill Gaps (NAs) in a Vector with the Last Non-NA Observation
+#' Last Observation Carried Forward Imputation for a Vector
 #'
 #' @param x \[`vector()`]\cr A vector possibly containing NA values.
 #' @noRd
@@ -225,6 +240,14 @@ locf <- function(x) {
   non_na <- ifelse_(is.na(x[1L]), c(1L, which(!is.na(x))), which(!is.na(x)))
   fill <- diff(c(non_na, length(x) + 1L))
   rep(x[non_na], fill)
+}
+
+#' Next Observation Carried Backward Imputation for a Vector
+#'
+#' @param x \[`vector()`]\cr A vector possibly containing NA values.
+#' @noRd
+nocb <- function(x) {
+  rev(locf(rev(x)))
 }
 
 #' Computes a Topological Ordering for the Vertices of a DAG.
@@ -247,11 +270,11 @@ topological_order <- function(A) {
     roots <- which(!colSums(A))
     n_roots <- length(roots)
   }
-  if (nrow(A) > 0) {
-    integer(0L)
-  } else {
+  ifelse_(
+    nrow(A) > 0L,
+    integer(0L),
     ord
-  }
+  )
 }
 
 #' Stop Function Execution Without Displaying the Call
@@ -320,37 +343,88 @@ onlyif <- function(test, yes) {
   }
 }
 
+#' Unlist lapply
+#'
+#' @inheritParams base::lapply
+#' @noRd
+ulapply <- function(X, FUN, ...) {
+  unlist(lapply(X, FUN, ...))
+}
+
+#' Actual rank for an increasing sequence
+#'
+#' @param x An increasing `numeric` sequence
+#' @noRd
+rank_ <- function(x) {
+  1L + c(0L, cumsum(diff(x) > 0))
+}
+
+#' Intersect Matrix Columns
+#'
+#' @param x List of matrices of identical dimensions
+#' @noRd
+matrix_intersect <- function(x) {
+  nc <- ncol(x[[1L]])
+  nr <- nrow(x[[1L]])
+  out <- matrix(0L, nrow = nr, ncol = nc)
+  for (i in seq_len(nc)) {
+    tmp <- Reduce(intersect, lapply(x, function(y) y[, i]))
+    out[seq_along(tmp), i] <- tmp
+  }
+  out
+}
+
+#' Row-wise log-sum-exp
+#'
+#' @noRd
+log_sum_exp_rows <- function(x, m, n) {
+  maxs <- apply(x, 1L, max)
+  maxs + log(.rowSums(exp(x - maxs), m, n))
+}
+
 #' Number of Unique Values
 #'
 #' @inheritParams data.table::uniqueN
 #' @noRd
 n_unique <- data.table::uniqueN
 
-#' Is Categorical Logit GLM Supported By Current Stan Version
+#' Is the OS Windows?
 #'
 #' @noRd
-stan_supports_categorical_logit_glm <- function(backend) {
-  backend_version <- ifelse_(
-    backend == "rstan",
-    as.character(rstan::stan_version()),
-    as.character(cmdstanr::cmdstan_version())
+is_windows <- function() {
+  identical(.Platform$OS.type, "windows")
+}
+
+#' R version (for mocking)
+#'
+#' @noRd
+R_version <- function() {
+  getRversion()
+}
+
+#' Package startup functionality
+#'
+#' @noRd
+startup <- function() {
+  if (stan_version_is_functional()) {
+    return()
+  }
+  packageStartupMessage(
+    "Please update your `rstan` and `StanHeaders` installations before ",
+    "using `dynamite` with the `rstan` backend by running:",
+    "\n\n",
+    "  remove.packages(c(\"rstan\", \"StanHeaders\"))\n",
+    "  install.packages(\"rstan\", ",
+    "repos = c(\"https://mc-stan.org/r-packages/\", getOption(\"repos\")))",
+    "\n\n",
+    "See https://github.com/stan-dev/rstan/wiki/Configuring",
+    "-C---Toolchain-for-Windows for further information."
   )
-  utils::compareVersion(backend_version, "2.23") >= 0
 }
 
-#' Row-wise log-sum-exp
-#'
-#' @noRd
-log_sum_exp_rows <- function(x) {
-  maxs <- apply(x, 1L, max)
-  maxs + log(rowSums(exp(x - maxs)))
+.onAttach <- function(libname, pkgname) {
+  startup()
 }
-
-# Placeholder for future
-# Startup message for the package
-# .onAttach <- function(libname, pkgname) {
-#   #invisible(NULL)
-# }
 
 # Placeholder for future
 # Code to execute when loading the package

@@ -10,13 +10,14 @@
 #'
 #' @export
 #' @export lfo
+#' @family diagnostics
 #' @aliases lfo
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param L  \[`integer(1)`]\cr Positive integer defining how many time points
 #'   should be used for the initial fit.
 #' @param verbose \[`logical(1)`]\cr If `TRUE` (default), print the progress of
 #'   the LFO computations to the console.
-#' @param k_threshold \[`numeric(1)`]\cr Threshold for the pareto k estimate
+#' @param k_threshold \[`numeric(1)`]\cr Threshold for the Pareto k estimate
 #'   triggering refit. Default is 0.7.
 #' @param ... Additional parameters to `dynamite`.
 #' @return An `lfo` object which is a `list` with the following components:
@@ -28,6 +29,7 @@
 #'   * `refits`\cr Time points where model was re-estimated.
 #'   * `L`\cr L value used in the LFO estimation.
 #'   * `k_threshold`\cr Threshold used in the LFO estimation.
+#'
 #' @references Paul-Christian Bürkner, Jonah Gabry, and Aki Vehtari (2020).
 #' Approximate leave-future-out cross-validation for Bayesian time series
 #' models, Journal of Statistical Computation and Simulation, 90:14, 2499-2523.
@@ -59,7 +61,7 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   log_mean_exp <- function(x) {
     log_sum_exp(x) - log(length(x))
   }
-  T_ <- x$stan$sampling_vars[["T"]]
+  T_ <- x$stan$model_vars[["T"]]
   stopifnot_(
     checkmate::test_int(
       x = L,
@@ -167,7 +169,7 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
       ks[[i - L]] <- k
       if (any(k > k_threshold)) {
         if (verbose) {
-          message_(paste0("Estimating model with ", i, " time points."))
+          message_("Estimating model with {i} time points.")
         }
         # refit the model based on the first i time points
         i_refit <- i
@@ -222,7 +224,11 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
           # env = list(time = time, timepoints = timepoints, i = i)
         ]
         elpds[[i - L + 1L]] <-
-          log_sum_exp_rows(t(lw) + matrix(ll, ncol = n_draws))
+          log_sum_exp_rows(
+            t(lw) + matrix(ll, ncol = n_draws),
+            ncol(lw),
+            n_draws
+          )
       }
     } else {
       # no observations
@@ -247,19 +253,20 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
 #' Print the results from the LFO
 #'
 #' Prints the summary of the leave-future-out cross-validation.
-#' @param x x \[`lfo`]\cr Output from `lfo` function.
+#' @param x x \[`lfo`]\cr Output of the `lfo` method.
 #' @param ... Ignored.
 #' @return Returns `x` invisibly.
 #' @export
 #' @examples
 #' \donttest{
-#' # this gives warnings due to the small number of iterations
+#' # This gives warnings due to the small number of iterations
 #' suppressWarnings(lfo(gaussian_example_fit, L = 20))
 #' }
 #'
 print.lfo <- function(x, ...) {
   cat("\nApproximate LFO starting from time point", x$L)
-  cat("\nModel was re-estimated at time points ",
+  cat(
+    "\nModel was re-estimated at time points ",
     paste(x$refit_times, collapse = ", "),
     " (Based on Pareto k threshold of ", x$k_threshold, ")\n",
     sep = ""
@@ -272,14 +279,15 @@ print.lfo <- function(x, ...) {
 #' Diagnostic Plot for Pareto k Values from LFO
 #'
 #' Plots Pareto k values per each time point (with one point per group),
-#' together with the horizontal line representing the used threshold.
+#' together with a horizontal line representing the used threshold.
+#'
 #' @param x \[`lfo`]\cr Output from the `lfo` function.
 #' @param ... Ignored.
 #' @return A ggplot object.
 #' @export
 #' @examples
 #' \donttest{
-#' # this gives warnings due to the small number of iterations
+#' # This gives warnings due to the small number of iterations
 #' plot(suppressWarnings(lfo(gaussian_example_fit, L = 20)))
 #' }
 #'

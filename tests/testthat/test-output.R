@@ -99,19 +99,6 @@ test_that("nus can be plotted", {
   )
 })
 
-test_that("lambdas can be plotted", {
-  expect_error(
-    plot_lambdas(latent_factor_example_fit),
-    NA
-  )
-})
-test_that("psis can be plotted", {
-  expect_error(
-    plot_psis(latent_factor_example_fit),
-    NA
-  )
-})
-
 test_that("formula can be extracted", {
   expect_error(
     formula(gaussian_example_fit),
@@ -165,7 +152,17 @@ test_that("gets can be got", {
     NA
   )
   expect_error(
-    get_code(gaussian_example_fit),
+    code1 <- get_code(gaussian_example_fit),
+    NA
+  )
+  gaussian_example_fit_null <- gaussian_example_fit
+  gaussian_example_fit_null$stanfit <- NULL
+  expect_error(
+    code2 <- get_code(gaussian_example_fit_null),
+    NA
+  )
+  expect_error(
+    get_code(gaussian_example_fit, blocks = c("parameters", "model")),
     NA
   )
   expect_error(
@@ -188,8 +185,17 @@ test_that("gets can be got", {
       "beta_y_x_lag1B", "beta_y_x_lag1C", "beta_y_y_lag1b", "beta_y_y_lag1c")
   )
   expect_equal(
-    get_parameter_types(latent_factor_example_fit),
-    c("sigma", "lambda", "sigma_lambda", "psi", "tau_psi", "omega_psi")
+    get_parameter_dims(categorical_example_fit),
+    list(
+      beta_x_B = 5L,
+      a_x_B = 1L,
+      beta_x_C = 5L,
+      a_x_C = 1L,
+      beta_y_b = 5L,
+      a_y_b = 1L,
+      beta_y_c = 5L,
+      a_y_c = 1L
+    )
   )
 })
 
@@ -202,13 +208,25 @@ test_that("credible intervals can be computed", {
 
 test_that("number of observations can be extracted", {
   expect_error(
-    nobs(gaussian_example_fit),
+    n <- nobs(gaussian_example_fit),
     NA
   )
+  expect_equal(n, 1450L)
   expect_error(
-    nobs(gaussian_example_single_fit),
+    n <- nobs(gaussian_example_single_fit),
     NA
   )
+  expect_equal(n, 29L)
+  expect_error(
+    n <- nobs(multichannel_example_fit),
+    NA
+  )
+  expect_equal(n, 2850L)
+  expect_error(
+    n <- nobs(categorical_example_fit),
+    NA
+  )
+  expect_equal(n, 3800L)
 })
 
 test_that("summary can be extracted", {

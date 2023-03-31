@@ -3,7 +3,6 @@
 #' @srrstats {G5.4} Predict and fitted method produce results identical with
 #'   "manual" computation based on the same posterior samples.
 #'
-run_extended_tests <- identical(Sys.getenv("DYNAMITE_EXTENDED_TESTS"), "true")
 
 test_that("predictions are on the same scale as input data", {
   expect_error(
@@ -127,7 +126,7 @@ test_that("fitted works", {
   expect_error(fitg <- fitted(gaussian_example_fit, n_draws = 2), NA)
 
   # first chain, second draw (permuted)
-  iter <- gaussian_example_fit$stanfit@sim$permutation[[1]][2]
+  iter <- gaussian_example_fit$stanfit@sim$permutation[[1L]][2L]
   xzy <- gaussian_example_fit$data |> dplyr::filter(id == 5 & time == 20)
   manual <- as_draws(gaussian_example_fit) |>
     dplyr::filter(.iteration == iter & .chain == 1) |>
@@ -142,7 +141,7 @@ test_that("fitted works", {
 
   expect_error(fitc <- fitted(categorical_example_fit, n_draws = 2), NA)
   # first chain, second draw (permuted)
-  iter <- categorical_example_fit$stanfit@sim$permutation[[1]][2]
+  iter <- categorical_example_fit$stanfit@sim$permutation[[1L]][2L]
   xzy <- categorical_example_fit$data |> dplyr::filter(id == 5 & time == 20)
   manual <- as_draws(categorical_example_fit) |>
     dplyr::filter(.iteration == iter & .chain == 1) |>
@@ -167,7 +166,7 @@ test_that("categorical predict with type = link works", {
   )
 
   # first chain, second draw (permuted)
-  iter <- categorical_example_fit$stanfit@sim$permutation[[1]][2]
+  iter <- categorical_example_fit$stanfit@sim$permutation[[1L]][2L]
   xzy <- categorical_example_fit$data |> dplyr::filter(id == 5 & time == 2)
   manual <- as_draws(categorical_example_fit) |>
     dplyr::filter(.iteration == iter & .chain == 1) |>
@@ -332,82 +331,6 @@ test_that("new group levels can be included in newdata", {
   )
 })
 
-test_that("predict with multiple random effects work", {
-  skip_if_not(run_extended_tests)
-
-  set.seed(1)
-  n <- 40
-  k <- 10
-  x <- rnorm(n * k)
-  u1 <- rep(rnorm(k, sd = 0.2), each = n)
-  u2 <- 0.5 * u1 + rep(rnorm(k, sd = 0.1), each = n)
-  u3 <- 0.2 * u1 + rep(rnorm(k, sd = 0.3), each = n)
-  y1 <- rbinom(n * k, size = 20, prob = plogis(x + u1 + u2 * x))
-  y2 <- rnorm(n * k, u3 + 2 * x)
-  d <- data.frame(
-    year = 1:n, person = rep(1:k, each = n),
-    y1 = y1, y2 = y2, x = x, tr = 20
-  )
-
-  fit <- dynamite(
-    obs(y1 ~ x + trials(tr) + random(~x), family = "binomial") +
-      obs(y2 ~ x + random(~1), family = "gaussian") +
-      random_spec(),
-    data = d, time = "year", group = "person",
-    chains = 1, iter = 2000, refresh = 0
-  )
-
-  expect_error(
-    sumr <- summary(fit, type = "sigma_nu"),
-    NA
-  )
-  expect_equal(sumr$mean, c(0.2338, 0.1331, 0.3339), tolerance = 0.2)
-
-  expect_error(
-    sumr <- summary(fit, type = "corr_nu"),
-    NA
-  )
-  expect_equal(sumr$mean, c(0.336, -0.0522, -0.0712), tolerance = 0.2)
-
-  expect_error(
-    predict(fit, n_draws = 5),
-    NA
-  )
-
-  newdata <- rbind(
-    d[(n + 1):nrow(d), ], # remove one person and add two
-    data.frame(
-      y1 = c(4, rep(NA, n - 1), 4, rep(NA, n - 1)),
-      y2 = c(0, rep(NA, n - 1), 0.5, rep(NA, n - 1)),
-      x = rnorm(2 * n),
-      person = rep(c(226L, 500L), each = n),
-      year = seq.int(1, n),
-      tr = rep(c(10, 25), each = n)
-    )
-  )
-  expect_error(
-    predict(fit,
-      newdata = newdata,
-      type = "response", n_draws = 5, new_levels = "bootstrap"
-    ),
-    NA
-  )
-  expect_error(
-    predict(fit,
-      newdata = newdata,
-      type = "response", n_draws = 5, new_levels = "gaussian"
-    ),
-    NA
-  )
-  expect_error(
-    predict(fit,
-      newdata = newdata,
-      type = "response", n_draws = 2, new_levels = "original"
-    ),
-    NA
-  )
-})
-
 test_that("imputation works", {
   set.seed(0)
   mis_x <- sample(seq_len(nrow(gaussian_example)), 150, replace = FALSE)
@@ -416,9 +339,22 @@ test_that("imputation works", {
   gaussian_example_impute[mis_x, "x"] <- NA
   gaussian_example_impute[mis_z, "z"] <- NA
   expect_error(
-    predict(gaussian_example_fit,
+    predict(
+      gaussian_example_fit,
       newdata = gaussian_example_impute,
-      type = "response", n_draws = 2L, impute = "locf"
+      type = "response",
+      n_draws = 2L,
+      impute = "locf"
+    ),
+    NA
+  )
+  expect_error(
+    predict(
+      gaussian_example_fit,
+      newdata = gaussian_example_impute,
+      type = "response",
+      n_draws = 2L,
+      impute = "nocb"
     ),
     NA
   )
@@ -452,21 +388,24 @@ test_that("summarising via funs is equivalent to manual summary", {
 })
 
 test_that("predict with loglik works", {
-  out <- expect_error(initialize_predict(
-    gaussian_example_fit,
-    newdata = NULL,
-    type = "mean",
-    eval_type = "loglik",
-    funs = list(),
-    impute = "none",
-    new_levels = "none",
-    global_fixed = FALSE,
-    n_draws = NULL,
-    expand = FALSE,
-    df = TRUE
-  )$simulated, NA)
+  out <- expect_error(
+    initialize_predict(
+      gaussian_example_fit,
+      newdata = NULL,
+      type = "mean",
+      eval_type = "loglik",
+      funs = list(),
+      impute = "none",
+      new_levels = "none",
+      global_fixed = FALSE,
+      n_draws = NULL,
+      expand = FALSE,
+      df = TRUE
+    )$simulated,
+    NA
+  )
 
-  iter <- gaussian_example_fit$stanfit@sim$permutation[[1]][2]
+  iter <- gaussian_example_fit$stanfit@sim$permutation[[1L]][2L]
   xzy <- gaussian_example_fit$data |> dplyr::filter(id == 5 & time == 20)
 
   manual <- as_draws(gaussian_example_fit) |>

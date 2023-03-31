@@ -145,6 +145,23 @@ test_that("cyclic dependency fails", {
   )
 })
 
+test_that("contemporaneous self dependency within a channel fails", {
+  expect_error(
+    obs(y ~ y, family = "gaussian"),
+    paste0(
+      "Contemporaneous self-dependency found in model formula:\n",
+      "x Variable `y` appears on both sides of the formula for \\(y\\)\\."
+    )
+  )
+  expect_error(
+    obs(c(y, x) ~ x | 1, family = "mvgaussian"),
+    paste0(
+      "Contemporaneous self-dependency found in model formula:\n",
+      "x Variable `x` appears on both sides of the formula for \\(y, x\\)\\."
+    )
+  )
+})
+
 test_that("adding nondynamiteformula to dynamiteformula fails", {
   expect_error(
     obs_test + 1.0,
@@ -162,17 +179,6 @@ test_that("plus method fails for nondynamiteformula", {
       "Method `\\+\\.dynamiteformula\\(\\)` is not supported",
       "for <data.frame> objects\\."
     )
-  )
-})
-
-test_that("categorical with random effects fails", {
-  expect_error(
-    dynamite(obs(y ~ x + random(~1), family = "categorical") + random_spec(),
-      data = data.frame(y = factor(1:4), x = runif(4), id = 1, time = 1:4),
-      "time", "id",
-      debug = list(no_compile = TRUE)
-    ),
-    "Random effects are not \\(yet\\) supported for categorical responses."
   )
 })
 
@@ -251,23 +257,7 @@ test_that("pure deterministic formula to dynamite fails", {
   )
 })
 
-test_that("categorical latent factor fails", {
-  expect_error(
-    dynamite(
-      obs(y ~ x, family = "categorical") + lfactor(),
-      data = data.frame(y = factor(1:4), x = runif(4), id = 1, time = 1:4),
-      time = "time",
-      group = "id",
-      debug = list(no_compile = TRUE)
-    ),
-    paste0(
-      "No valid responses for latent factor component:\n",
-      "x Latent factors are not supported for the categorical family\\."
-    )
-  )
-})
-
-test_that("Latent factor errors with invalid responses", {
+test_that("latent factor errors with invalid responses", {
   expect_error(
     dynamite(
       obs(y ~ x, family = "gaussian") + lfactor(responses = 1),
@@ -292,21 +282,8 @@ test_that("Latent factor errors with invalid responses", {
     )
   )
 })
-test_that("Latent factor errors with nonlogical value for argument
-  noncentered", {
-  expect_error(
-    dynamite(
-      obs(y ~ x, family = "gaussian") + lfactor(noncentered_lambda = 1),
-      data = data.frame(y = rnorm(4), x = runif(4), id = 1, time = 1:4),
-      time = "time",
-      group = "id",
-      debug = list(no_compile = TRUE)
-    ),
-    "Argument `noncentered_lambda` must be a <logical> vector\\."
-  )
-})
-test_that("Latent factor errors with nonlogical value for argument
-  nonzero_lambda", {
+
+test_that("latent factor errors with nonlogical value for nonzero_lambda", {
   expect_error(
     dynamite(
       obs(y ~ x, family = "gaussian") + lfactor(nonzero_lambda = 1),
@@ -318,8 +295,34 @@ test_that("Latent factor errors with nonlogical value for argument
     "Argument `nonzero_lambda` must be a <logical> vector\\."
   )
 })
-test_that("Latent factor errors with nonlogical value for argument
-  noncentered_psi", {
+
+test_that("Random effect errors with single group", {
+  expect_error(
+    dynamite(
+      obs(y ~ x + random(~1), family = "gaussian"),
+      data = data.frame(y = rnorm(4), x = runif(4), id = 1, time = 1:4),
+      time = "time",
+      group = "id",
+      debug = list(no_compile = TRUE)
+    ),
+    "Cannot estimate random effects using only one group\\."
+  )
+})
+
+test_that("Latent factor errors with single group", {
+  expect_error(
+    dynamite(
+      obs(y ~ x, family = "gaussian") + lfactor(),
+      data = data.frame(y = rnorm(4), x = runif(4), id = 1, time = 1:4),
+      time = "time",
+      group = "id",
+      debug = list(no_compile = TRUE)
+    ),
+    "Cannot estimate latent factors using only one group\\."
+  )
+})
+
+test_that("latent factor fails with nonlogical value for noncentered_psi", {
   expect_error(
     dynamite(
       obs(y ~ x, family = "gaussian") + lfactor(noncentered_psi = 1),
@@ -331,7 +334,8 @@ test_that("Latent factor errors with nonlogical value for argument
     "Argument `noncentered_psi` must be a single <logical> value\\."
   )
 })
-test_that("Latent factor errors with nonlogical value for argument correlated", {
+
+test_that("latent factor fails with nonlogical value for correlated", {
   expect_error(
     dynamite(
       obs(y ~ x, family = "gaussian") + lfactor(correlated = 1),
@@ -343,14 +347,67 @@ test_that("Latent factor errors with nonlogical value for argument correlated", 
     "Argument `correlated` must be a single <logical> value\\."
   )
 })
+
+test_that("update fails with incompatible formula", {
+  expect_error(
+    update(
+      multichannel_example_fit,
+      obs(y ~ x, family = "gaussian"),
+      debug = list(no_compile = TRUE)
+    ),
+    "Can't find variable `x` in `data`\\."
+  )
+})
+
+test_that("multivariate family fails with single response", {
+  expect_error(
+    obs(y1 ~ x, family = "mvgaussian"),
+    "A multivariate channel must have more than one response variable\\."
+  )
+})
+
+test_that("univariate family fails with multiple response variables", {
+  expect_error(
+    obs(c(y1, y2) ~ x, family = "gaussian"),
+    "A univariate channel must have only one response variable\\."
+  )
+})
+
+test_that("invalid number of formula components fails", {
+  expect_error(
+    obs(c(y1, y2) ~ x | x | x, family = "mvgaussian"),
+    paste0(
+      "Number of component formulas must be 1 ",
+      "or the number of dimensions: 2\n",
+      "x 3 formulas were provided\\."
+    )
+  )
+  expect_error(
+    obs(y1 ~ x | x, family = "gaussian"),
+    "A univariate channel must have only one formula component\\."
+  )
+})
+
+test_that("multinomial family fails with multiple formula components", {
+  expect_error(
+    obs(c(y1, y2, y3) ~ 1 + trials(n) | x | x, family = "multinomial"),
+    "A multinomial channel must have only one formula component\\."
+  )
+})
+
 # Formula specials errors -------------------------------------------------
 
-test_that("no intercept or predictors fails", {
+test_that("no intercept or predictors fails if no lfactor", {
   expect_error(
-    obs(y ~ -1, family = "gaussian"),
+    dynamite(
+      obs(y ~ -1, family = "gaussian"),
+      data = gaussian_example,
+      time = "time",
+      group = "id"
+    ),
     paste0(
       "Invalid formula for response variable `y`:\n",
-      "x There are no predictors nor an intercept term\\."
+      "x There are no predictors, intercept terms, or latent factors\\."
     )
   )
 })
@@ -359,6 +416,13 @@ test_that("binomial channel without a trials term fails", {
   expect_error(
     obs(y ~ x, family = "binomial"),
     "Formula for a binomial channel must include a trials term\\."
+  )
+})
+
+test_that("multinomial channel without a trials term fails", {
+  expect_error(
+    obs(c(y1, y2) ~ 1, family = "multinomial"),
+    "Formula for a multinomial channel must include a trials term\\."
   )
 })
 
@@ -398,6 +462,67 @@ test_that("multiple special components fail", {
   expect_error(
     obs(y ~ random(~1) + random(~x), family = "gaussian"),
     "Multiple `random\\(\\)` terms are not supported\\."
+  )
+})
+
+test_that("specials that cannot be evaluated fail", {
+  expect_error(
+    dynamite(
+      obs(y ~ 1 + trials(log(-lag(y))), family = "binomial"),
+      data = data.frame(y = 1:3, z = 1:3),
+      time = "z"
+    ),
+    paste0(
+      "Unable to evaluate `trials\\(\\)` for response variable `y`:\n",
+      "x .+"
+    )
+  )
+  expect_error(
+    dynamite(
+      obs(y ~ 1 + offset(log(-lag(x))), family = "poisson"),
+      data = data.frame(y = 1:3, z = 1:3),
+      time = "z"
+    ),
+    paste0(
+      "Unable to evaluate `offset\\(\\)` for response variable `y`:\n",
+      "x .+"
+    )
+  )
+})
+
+test_that("test that specials with invalid values fail", {
+  expect_error(
+    dynamite(
+      obs(y ~ 1 + trials(n), family = "binomial"),
+      data = data.frame(y = 1:3, z = 1:3, n = factor(1:3)),
+      time = "z"
+    ),
+    paste0(
+      "Invalid `trials\\(\\)` definition for response variable `y`:\n",
+      "x Number of trials cannot be a <factor>\\."
+    )
+  )
+  expect_error(
+    dynamite(
+      obs(y ~ 1 + trials(n), family = "binomial"),
+      data = data.frame(y = 1:3, z = 1:3, n = -(1:3)),
+      time = "z"
+    ),
+    paste0(
+      "Invalid `trials\\(\\)` definition for response variable `y`:\n",
+      "x Number of trials must contain only positive integers\\."
+    )
+  )
+  expect_error(
+    dynamite(
+      obs(y ~ 1 + offset(n), family = "poisson"),
+      data = data.frame(y = 1:3, z = 1:3, n = factor(1:3)),
+      time = "z"
+    ),
+    paste0(
+      "Invalid `offset\\(\\)` definition for response variable `y`:\n",
+      "x Offset cannot be a <factor>\\."
+    )
   )
 })
 
@@ -609,10 +734,22 @@ test_that("non-factor categorical response fails", {
 })
 
 test_that("factor types for non-categorical families fails", {
-  test_data <- data.frame(y = factor(c(0, 1)), x = c(1, 1), z = c(1, 2))
+  test_data <- data.frame(
+    y = factor(c(0, 1)),
+    w = c(1, 2),
+    x = c(1, 1),
+    z = c(1, 2)
+  )
   families <- c(
-    "gaussian", "exponential", "gamma", "beta",
-    "bernoulli", "binomial", "poisson", "negbin"
+    "gaussian",
+    "exponential",
+    "gamma",
+    "beta",
+    "bernoulli",
+    "binomial",
+    "poisson",
+    "negbin",
+    "student"
   )
   for (f in families) {
     form <- ifelse_(identical(f, "binomial"), y ~ 1 + trials(x), y ~ 1)
@@ -630,11 +767,41 @@ test_that("factor types for non-categorical families fails", {
       )
     )
   }
+  mvfamilies <- c(
+    "mvgaussian",
+    "multinomial"
+  )
+  for (f in mvfamilies) {
+    form <- ifelse_(
+      identical(f, "multinomial"),
+      c(y, w) ~ 1 + trials(x),
+      c(y, w) ~ 1
+    )
+    expect_error(
+      dynamite(
+        dformula = obs(form, family = f),
+        data = test_data,
+        time = "z",
+        group = "x",
+        debug = list(no_compile = TRUE)
+      ),
+      paste0(
+        "Response variable `.+` is invalid:\n",
+        "x .+ family is not supported for <factor> variables\\."
+      )
+    )
+  }
 })
 
 test_that("negative values for distributions with positive support fails", {
-  test_data <- data.frame(y = c(-1, -2), x = c(1, 1), z = c(1, 2))
-  families <- c("exponential", "gamma", "binomial", "negbin", "poisson")
+  test_data <- data.frame(y = c(-1, -2), w = c(1, 2), x = c(1, 1), z = c(1, 2))
+  families <- c(
+    "exponential",
+    "gamma",
+    "binomial",
+    "negbin",
+    "poisson"
+  )
   for (f in families) {
     form <- ifelse_(identical(f, "binomial"), y ~ 1 + trials(x), y ~ 1)
     expect_error(
@@ -651,6 +818,19 @@ test_that("negative values for distributions with positive support fails", {
       )
     )
   }
+  expect_error(
+    dynamite(
+      dformula = obs(c(y, w) ~ 1 + trials(c(2, 3)), family = "multinomial"),
+      data = test_data,
+      time = "z",
+      group = "x",
+      debug = list(no_compile = TRUE)
+    ),
+    paste0(
+      "Response variable `y_w` is invalid:\n",
+      "x Multinomial family supports only non-negative .+\\."
+    )
+  )
 })
 
 test_that("bernoulli without 0/1 values fails", {
@@ -812,6 +992,30 @@ test_that("Invalid confint level fails", {
   expect_error(
     confint.dynamitefit(gaussian_example_fit, level = -0.1),
     "Argument `level` must be a single <numeric> value between 0 and 1\\."
+  )
+})
+
+test_that("Invalid parameter name fails", {
+  expect_error(
+    as.data.table(gaussian_example_fit, parameter = "test"),
+    paste0(
+      "Parameter `test` not found in the model output\\.\n",
+      "i Use `get_parameter_names\\(\\)` to check available parameters\\."
+    )
+  )
+})
+
+test_that("Invalid code blocks fail", {
+  expect_error(
+    get_code(gaussian_example_fit, blocks = mean),
+    "Argument `blocks` must be a <character> vector or NULL\\."
+  )
+  expect_error(
+    get_code(gaussian_example_fit, blocks = "block"),
+    paste0(
+      "Invalid Stan blocks provided: block\n",
+      "i Argument `blocks` must be NULL or a subset of .*"
+    )
   )
 })
 
@@ -1015,6 +1219,17 @@ test_that("incomplete priors fails", {
       "x Prior for parameter `sigma_nu_y_alpha` is not defined\\."
     )
   )
+
+  expect_error(
+    update(gaussian_example_fit,
+      priors = p2,
+      debug = list(no_compile = TRUE)
+    ),
+    paste0(
+      "Argument `priors` must contain all relevant parameters:\n",
+      "x Prior for parameter `sigma_nu_y_alpha` is not defined\\."
+    )
+  )
 })
 
 test_that("irrevelant parameters fails", {
@@ -1111,7 +1326,7 @@ test_that("plot errors when no variable is found ", {
     plot(categorical_example_fit, type = "delta"),
     paste0(
       "No parameters of type `delta` found for any of the response ",
-      "channels `x`, `y`."
+      "channels `x` and `y`."
     )
   )
 })
@@ -1135,24 +1350,34 @@ test_that("plot_betas errors when incorrect parameters are supplied", {
     plot_betas(gaussian_example_fit, parameters = "delta_y_x"),
     paste0(
       "Parameter `delta_y_x` not found or it is of wrong type:\n",
-      'x Use `get_parameter_names\\(\\)` with `types = "beta"` to check ',
+      'i Use `get_parameter_names\\(\\)` with `types = "beta"` to check ',
       'suitable parameter names\\.'
     )
   )
 })
+
 test_that("plot_deltas errors when incorrect parameters are supplied", {
   expect_error(
     plot_deltas(gaussian_example_fit, parameters = c("a", "delta_y_x")),
     paste0(
       "Parameter `a` not found or it is of wrong type:\n",
-      'x Use `get_parameter_names\\(\\)` with `types = "delta"` to check ',
+      'i Use `get_parameter_names\\(\\)` with `types = "delta"` to check ',
       'suitable parameter names\\.'
     )
   )
 })
+
 test_that("plot_nus errors when incorrect parameters are supplied", {
   expect_error(
     plot_nus(gaussian_example_fit, parameters = 5),
     "Argument `parameters` must be a <character> vector\\."
+  )
+  expect_error(
+    plot_nus(gaussian_example_fit, parameters = "test"),
+    paste0(
+      "Parameter `test` not found or it is of wrong type:\n",
+      'i Use `get_parameter_names\\(\\)` with `types = "nu"` to check ',
+      'suitable parameter names\\.'
+    )
   )
 })

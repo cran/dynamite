@@ -12,7 +12,7 @@
 \item{...}{Not used.}
 }
 \value{
-Total number of non-missing observations as an integer.
+Total number of non-missing observations as an \code{integer}.
 }
 \description{
 Extract the Number of Observations Used to Fit a Dynamite Model
@@ -21,3 +21,19 @@ Extract the Number of Observations Used to Fit a Dynamite Model
 nobs(gaussian_example_fit)
 
 }
+\seealso{
+Model outputs
+\code{\link{as.data.frame.dynamitefit}()},
+\code{\link{as.data.table.dynamitefit}()},
+\code{\link{as_draws_df.dynamitefit}()},
+\code{\link{coef.dynamitefit}()},
+\code{\link{confint.dynamitefit}()},
+\code{\link{dynamite}()},
+\code{\link{get_code}()},
+\code{\link{get_data}()},
+\code{\link{get_parameter_dims}()},
+\code{\link{get_parameter_names}()},
+\code{\link{get_parameter_types}()},
+\code{\link{ndraws.dynamitefit}()}
+}
+\concept{output}

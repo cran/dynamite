@@ -1,4 +1,8 @@
-#' Update Dynamite Model
+#' Update a Dynamite Model
+#'
+#' Note that using a different backend for the original model fit and when
+#' updating can lead to an error due to different naming in `cmdstanr` and
+#' `rstan` sampling arguments.
 #'
 #' @param object \[`dynamitefit`]\cr The model fit object.
 #' @param dformula \[`dynamiteformula`]\cr Updated model formula. By default
@@ -10,18 +14,19 @@
 #'   the original model are used.
 #' @param recompile \[`logical(1)`]\cr Should the model be recompiled? If
 #' `NULL` (default), tries to avoid recompilation. Recompilation is forced when
-#'  the model formula or priors are changed, or if the new data contains
+#'  the model formula or the priors are changed, or if the new data contains
 #'  missing values in a channel which did not contain missing values in the
 #'  original data. Recompilation is also forced in case the backend previous or
 #'  new backend is `cmdstanr`.
 #' @param ... Additional parameters to `dynamite`.
-#' @return Updated `dynamitefit` object.
+#' @return An updated `dynamitefit` object.
 #' @export
+#' @family fitting
 #' @examples
 #' \dontrun{
 #' # re-estimate the example fit without thinning:
 #' # As the model is compiled on Windows, this will fail on other platforms
-#' if (.Platform$OS.type == "windows") {
+#' if (identical(.Platform$OS.type, "windows")) {
 #'   fit <- update(gaussian_example_fit, thin = 1)
 #' }
 #' }
@@ -46,11 +51,15 @@ update.dynamitefit <- function(object, dformula = NULL, data = NULL,
     data.table::setattr(data, "data_name", deparse1(substitute(data)))
     call$data <- data
   }
-  if (object$backend == "cmdstanr") {
+  extras <- match.call(expand.dots = FALSE)$...
+  # always ask for recompilation if using cmdstanr
+  # however, this does not necessarily lead to recompilation if original model
+  # was compiled in the same session
+  if (object$backend == "cmdstanr" ||
+      !is.null(extras$backend) && extras$backend == "cmdstanr") {
     recompile <- TRUE
   }
 
-  extras <- match.call(expand.dots = FALSE)$...
   if (length(extras) > 0L) {
     existing <- !is.na(match(names(extras), names(call)))
     for (a in names(extras)[existing]) {

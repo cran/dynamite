@@ -1,16 +1,18 @@
-#' Traceplots and Density Plots of a `dynamitefit` Object
+#' Traceplots and Density Plots for a `dynamitefit` Object
 #'
 #' Produces the traceplots and the density plots of the model parameters.
 #'
 #' @export
+#' @family plotting
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param parameters \[`charecter()`]\ Parameter name(s) for which the plots
-#'   should be drawn. Possible options can be found with function
-#'   `get_parameter_names()`. Default is all parameters of specific type for all
-#'   responses, which can lead to too crowded figure.
+#'   should be drawn. Possible options can be found with the function
+#'   [dynamite::get_parameter_names()]. The default is all parameters ofa
+#'   specific type for all responses, which can lead to too crowded a plot.
 #' @param type \[`character(1)`]\cr Type of the parameter for which the plots
-#'   should be drawn. Possible options can be found with function
-#'   `get_parameter_types()`. Ignored if the argument `parameters` is supplied.
+#'   should be drawn. Possible options can be found with the function
+#'   [dynamite::get_parameter_types()]. Ignored if the argument `parameters`
+#'   is supplied.
 #' @param responses \[`character()`]\cr Response(s) for which the plots should
 #'   be drawn. Possible options are `unique(x$priors$response)`. Default is
 #'   all responses. Ignored if the argument `parameters` is supplied.
@@ -74,6 +76,7 @@ plot.dynamitefit <- function(x, parameters = NULL, type = NULL,
 #' Plot Time-varying Regression Coefficients of a Dynamite Model
 #'
 #' @export
+#' @family plotting
 #' @param x \[`dynamitefit`]\cr The model fit object
 #' @param parameters \[`charecter()`]\ Parameter name(s) for which the plots
 #'   should be drawn. Possible options can be found with function
@@ -136,7 +139,7 @@ plot_deltas <- function(x, parameters = NULL, responses = NULL, level = 0.05,
       c(
         "Parameter{?s} {.var {parameters[!found_pars]}} not found or
         {?it is/they are} of wrong type:",
-        `x` = 'Use {.fun get_parameter_names} with {.arg types = "delta"} to
+        `i` = 'Use {.fun get_parameter_names} with {.arg types = "delta"} to
         check suitable parameter names.'
       )
     )
@@ -157,7 +160,7 @@ plot_deltas <- function(x, parameters = NULL, responses = NULL, level = 0.05,
   scales <- try(match.arg(scales, c("fixed", "free")), silent = TRUE)
   stopifnot_(
     !inherits(scales, "try-error"),
-    "Argument {.arg scales} must be either \"fixed\" or \"free\"."
+    "Argument {.arg scales} must be either {.val fixed} or {.val free}."
   )
   title <- paste0(
     "Posterior mean and ",
@@ -197,6 +200,7 @@ plot_deltas <- function(x, parameters = NULL, responses = NULL, level = 0.05,
 #' Plot Time-invariant Regression Coefficients of a Dynamite Model
 #'
 #' @export
+#' @family plotting
 #' @inheritParams plot_deltas
 #' @param parameters \[`charecter()`]\ Parameter name(s) for which the plots
 #'   should be drawn. Possible options can be found with function
@@ -236,7 +240,7 @@ plot_betas <- function(x, parameters = NULL, responses = NULL, level = 0.05,
       c(
         "Parameter{?s} {.var {parameters[!found_pars]}} not found or
         {?it is/they are} of wrong type:",
-        `x` = 'Use {.fun get_parameter_names} with {.arg types = "beta"} to
+        `i` = 'Use {.fun get_parameter_names} with {.arg types = "beta"} to
         check suitable parameter names.'
       )
     )
@@ -290,6 +294,7 @@ plot_betas <- function(x, parameters = NULL, responses = NULL, level = 0.05,
 #' groups, the plot will become messy with large number of groups.
 #'
 #' @export
+#' @family plotting
 #' @inheritParams plot_deltas
 #' @param groups Group name(s) for which the plots should be drawn.
 #'   Default is all groups.
@@ -326,7 +331,7 @@ plot_nus <- function(x, parameters = NULL, responses = NULL, level = 0.05,
       c(
         "Parameter{?s} {.var {parameters[!found_pars]}} not found or
         {?it is/they are} of wrong type:",
-        `x` = 'Use {.fun get_parameter_names} with {.arg types = "nu"} to
+        `i` = 'Use {.fun get_parameter_names} with {.arg types = "nu"} to
         check suitable parameter names.'
       )
     )
@@ -345,9 +350,11 @@ plot_nus <- function(x, parameters = NULL, responses = NULL, level = 0.05,
     !inherits(coefs, "try-error"),
     "The model does not contain random effects nu."
   )
-  if (!is.null(groups)) {
-    coefs <- coefs[coefs$group %in% groups, ]
-  }
+  coefs <- ifelse_(
+    is.null(groups),
+    coefs,
+    coefs[coefs$group %in% groups, ]
+  )
   # avoid NSE notes from R CMD check
   mean <- parameter <- NULL
   coefs$parameter <- glue::glue("{coefs$parameter}_{coefs$group}")
@@ -369,6 +376,7 @@ plot_nus <- function(x, parameters = NULL, responses = NULL, level = 0.05,
 #' Plot Factor Loadings of a Dynamite Model
 #'
 #' @export
+#' @family plotting
 #' @inheritParams plot_deltas
 #' @return A `ggplot` object.
 #' @srrstats {BS6.1, RE6.0, RE6.1, BS6.3} Implements the `plot` method.
@@ -416,6 +424,7 @@ plot_lambdas <- function(x, responses = NULL, level = 0.05) {
 #' Plot Latent Factors of a Dynamite Model
 #'
 #' @export
+#' @family plotting
 #' @param x \[`dynamitefit`]\cr The model fit object
 #' @param responses  \[`character()`]\cr Response(s) for which the coefficients
 #'   should be drawn. Possible options are elements of
@@ -467,7 +476,7 @@ plot_psis <- function(
   scales <- try(match.arg(scales, c("fixed", "free")), silent = TRUE)
   stopifnot_(
     !inherits(scales, "try-error"),
-    "Argument {.arg scales} must be either \"fixed\" or \"free\"."
+    "Argument {.arg scales} must be either {.val fixed} or {.val free}."
   )
   title <- paste0(
     "Posterior mean and ",

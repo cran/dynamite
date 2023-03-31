@@ -25,7 +25,7 @@ test_that("parameters for the linear regression are recovered as with lm", {
   priors$prior <- c("normal(0, 5)", "std_normal()", "exponential(1)")
   fit_dynamite <- dynamite(obs(y ~ x, family = "gaussian"),
     data = d, time = "time", priors = priors,
-    chains = 1, iter = 2000, refresh = 500
+    chains = 1, iter = 2000, refresh = 0
   )
   expect_equal(coef(fit_dynamite)$mean, coef(fit_lm),
     tolerance = 0.01,
@@ -43,7 +43,7 @@ test_that("parameters for the poisson glm are recovered as with glm", {
 
   fit_glm <- glm(y ~ x, data = d, family = poisson)
   fit_dynamite <- dynamite(obs(y ~ x, family = "poisson"),
-    data = d, time = "time", chains = 1, iter = 2000, refresh = 500
+    data = d, time = "time", chains = 1, iter = 2000, refresh = 0
   )
   expect_equal(coef(fit_dynamite)$mean, coef(fit_glm),
     tolerance = 0.01,
@@ -62,7 +62,7 @@ test_that("parameters for the binomial glm are recovered as with glm", {
 
   fit_glm <- glm(cbind(y, u - y) ~ x, data = d, family = binomial)
   fit_dynamite <- dynamite(obs(y ~ x + trials(u), family = "binomial"),
-    data = d, time = "time", chains = 1, iter = 2000, refresh = 500
+    data = d, time = "time", chains = 1, iter = 2000, refresh = 0
   )
   expect_equal(coef(fit_dynamite)$mean, coef(fit_glm),
     tolerance = 0.01,
@@ -80,7 +80,7 @@ test_that("parameters for the gamma glm are recovered as with glm", {
 
   fit_glm <- glm(y ~ x, data = d, family = Gamma(link = "log"))
   fit_dynamite <- dynamite(obs(y ~ x, family = "gamma"),
-    data = d, time = "time", chains = 1, iter = 2000, refresh = 500
+    data = d, time = "time", chains = 1, iter = 2000, refresh = 0
   )
   expect_equal(coef(fit_dynamite)$mean[1:2], coef(fit_glm),
     tolerance = 0.01,
@@ -99,37 +99,32 @@ test_that("parameters for poisson mixed model are recovered", {
   y <- rpois(n * k, exp(2 - x + u1 + u2 * x))
   d <- data.frame(year = 1:n, person = rep(1:k, each = n), y = y, x = x)
 
-  # use default priors of brms (except not totally flat for beta)
   p <- data.frame(
     parameter = c(
       "sigma_nu_y_alpha", "sigma_nu_y_x", "alpha_y", "beta_y_x",
       "L_nu"
     ),
-    response = "y",
+    response = c(rep("y", 4), ""),
     prior = c(
-      "student_t(3, 0, 2.5)", "student_t(3, 0, 2.5)",
-      "student_t(3, 1.9, 2.5)", "normal(0, 1000)", "lkj_corr_cholesky(1)"
+      "std_normal()", "std_normal()",
+      "student_t(3, 2, 2)", "normal(0, 10)", "lkj_corr_cholesky(1)"
     ),
     type = c("sigma_nu", "sigma_nu", "alpha", "beta", "L"),
     category = ""
   )
   fit_dynamite <- dynamite(
-    obs(y ~ x + random(~ 1 + x), family = "poisson") +
-      random_spec(noncentered = FALSE, correlated = TRUE),
+    obs(y ~ x + random(~ 1 + x), family = "poisson"),
     data = d, time = "year", group = "person", priors = p,
-    chains = 1, iter = 2000, refresh = 0, seed = 1
+    init = 0, chains = 2, cores = 2, iter = 2000, refresh = 0, seed = 1
   )
-  # "ground truth" obtained from one long dynamite run and brms,
-  # note that brms can give few divergences as does dynamite if
-  # noncentered = TRUE
-  expect_equal(coef(fit_dynamite)$mean, c(2.014, -0.9932),
+  # "ground truth" obtained from one long dynamite run
+  expect_equal(coef(fit_dynamite)$mean, c(2, -0.99),
     tolerance = 0.1
   )
   expect_equal(coef(fit_dynamite, type = "nu")$mean,
     c(
-      0.1635, 0.4153, -0.0924, -0.1344, -0.0773, -0.1237, -0.2027,
-      -0.1231, 0.2726, -0.1071, -0.03, 4e-04, 0.0997, -0.1146, -0.0313,
-      0.0146, 0.0407, -0.0169, -0.1407, 0.1635
+      0.17, 0.42, -0.09, -0.13, -0.07, -0.12, -0.2, -0.12, 0.28,
+      -0.1, -0.03, 0, 0.1, -0.11, -0.03, 0.02, 0.04, -0.02, -0.14, 0.16
     ),
     tolerance = 0.1
   )
@@ -144,16 +139,16 @@ test_that("parameters for an AR(1) model are recovered as with arima", {
     group = "id",
     chains = 1,
     iter = 2000,
-    refresh = 500
+    refresh = 0
   )
   fit_arima <- arima(LakeHuron, c(1, 0, 0))
-  expect_equal(coef(fit)$mean[2], coef(fit_arima)[1],
+  expect_equal(coef(fit)$mean[2], coef(fit_arima)[1L],
     tolerance = 0.01,
     ignore_attr = TRUE
   )
   expect_equal(
-    coef(fit)$mean[1],
-    coef(fit_arima)[2] * (1 - coef(fit_arima)[1]),
+    coef(fit)$mean[1L],
+    coef(fit_arima)[2L] * (1 - coef(fit_arima)[1L]),
     tolerance = 1, ignore_attr = TRUE
   )
 })
@@ -167,10 +162,11 @@ test_that("LOO works for AR(1) model", {
     group = "id",
     chains = 1,
     iter = 2000,
-    refresh = 500
+    refresh = 0
   )
   l <- loo(fit)
-  expect_equal(l$estimates,
+  expect_equal(
+    l$estimates,
     structure(
       c(
         -107.877842970846, 2.86041434691809, 215.755685941693,
@@ -184,6 +180,50 @@ test_that("LOO works for AR(1) model", {
   expect_error(plot(l), NA)
 })
 
+test_that("LOO works with separate channels", {
+  set.seed(1)
+  expect_error(
+    l <- loo(multichannel_example_fit, separate_channels = TRUE),
+    NA
+  )
+  expect_equal(
+    l$g_loglik$estimates,
+    structure(
+      c(
+        127.7731689, 3.9598420, -255.5463377,
+        21.1943047,  0.2433661,   42.3886094
+      ),
+      dim = 3:2,
+      dimnames = list(c("elpd_loo", "p_loo", "looic"), c("Estimate", "SE"))
+    ),
+    tolerance = 1
+  )
+  expect_equal(
+    l$p_loglik$estimates,
+    structure(
+      c(
+        -2128.5452197, 4.5260226, 4257.0904393,
+        26.5452884,    0.3107372, 53.0905768
+      ),
+      dim = 3:2,
+      dimnames = list(c("elpd_loo", "p_loo", "looic"), c("Estimate", "SE"))
+    ),
+    tolerance = 1
+  )
+  expect_equal(
+    l$b_loglik$estimates,
+    structure(
+      c(
+        -583.3724555, 6.8573891, 1166.7449111,
+        12.1459613,   0.3097697, 24.2919227
+      ),
+      dim = 3:2,
+      dimnames = list(c("elpd_loo", "p_loo", "looic"), c("Estimate", "SE"))
+    ),
+    tolerance = 1
+  )
+})
+
 test_that("LFO works for AR(1) model", {
   # This also implicitly tests update method
   skip_if_not(run_extended_tests)
@@ -194,12 +234,13 @@ test_that("LFO works for AR(1) model", {
     group = "id",
     chains = 1,
     iter = 2000,
-    refresh = 500
+    refresh = 0
   )
   l <- lfo(fit, L = 20)
   expect_equal(l$ELPD, -90.4188604974201, tolerance = 1)
   expect_equal(l$ELPD_SE, 7.58842574523583, tolerance = 1)
   expect_error(plot(l), NA)
+  expect_error(print(l), NA)
 })
 
 test_that("parameters of a time-varying gaussian model are recovered", {
@@ -311,8 +352,8 @@ test_that("prior parameters are recovered with zero observations", {
     dplyr::filter(parameter == "alpha_y") |>
     dplyr::select(mean, sd, q5, q95)
 
-  m <- 2 - d$x[1] * 5
-  s <- sqrt(0.1^2 + d$x[1]^2 * 0.5^2)
+  m <- 2 - d$x[1L] * 5
+  s <- sqrt(0.1^2 + d$x[1L]^2 * 0.5^2)
   expect_equal(
     unlist(sumr[1, 2:5]),
     c(m, s, qnorm(c(0.05, 0.95), m, s)),
@@ -338,7 +379,7 @@ test_that("predict recovers correct estimates", {
   y <- matrix(0, N, T_)
   nu <- rnorm(N)
   y[, 1] <- rbinom(N, size = 1, prob = 0.5)
-  for(t in 2:T_) y[, t] <- rbinom(N, 1, plogis(nu + y[, t-1]))
+  for (t in 2:T_) y[, t] <- rbinom(N, 1, plogis(nu + y[, t-1]))
 
   ## check these if tests fail ##
   # model <- rstan::stan_model("testmodel.stan")

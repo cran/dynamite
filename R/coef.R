@@ -3,8 +3,8 @@
 #' Extracts either time-varying or time-invariant parameters of the model.
 #'
 #' @export
+#' @family output
 #' @param object \[`dynamitefit`]\cr The model fit object.
-
 #' @param type  \[`character(1)`]\cr Either `beta` (the default) for
 #'   time-invariant coefficients, `delta` for time-varying coefficients,
 #'   `nu` for random effects, `lambda` for factor loadings, or `psi` for
@@ -40,8 +40,8 @@ coef.dynamitefit <- function(object,
     )
     stopifnot_(
       !inherits(type, "try-error"),
-      "Argument {.arg type} must be either \"beta\", \"delta\", \"nu\",
-      \"lambda\", or \"psi\"."
+      "Argument {.arg type} must be either {.val beta}, {.val delta},
+      {.val nu}, {.val lambda}, or {.val psi}."
     )
     stopifnot_(
       checkmate::test_flag(x = include_alpha),

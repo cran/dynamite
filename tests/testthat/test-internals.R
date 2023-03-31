@@ -1,3 +1,15 @@
+test_that("formula model topology is correct", {
+  f1 <- obs(c(y1, y2) ~ 1 | x, family = "mvgaussian") +
+    obs(x ~ 1 + z, family = "gaussian")
+  f2 <- obs(z ~ w1, family = "gaussian") +
+    obs(c(w1, w2, w3) ~ 1 | y | y, family = "mvgaussian") +
+    obs(y ~ 1, family = "gaussian")
+  expect_identical(attr(f1, "model_topology"), 2:1)
+  expect_identical(attr(f2, "model_topology"), 3:1)
+  expect_identical(attr(f2 + f1, "model_topology"), c(3:1, 5:4))
+  expect_identical(attr(f1 + f2, "model_topology"), 5:1)
+})
+
 test_that("formula parts are correct", {
   f1 <- y ~ x + z * h
   f2 <- ~ x + z * h
@@ -8,19 +20,19 @@ test_that("formula parts are correct", {
 
 test_that("formula incrementation logic is correct", {
   obs_list <- list(
-    obs(y ~ 1, family = "gaussian")[[1]],
-    obs(y ~ -1 + varying(~1), family = "gaussian")[[1]],
-    obs(y ~ x, family = "gaussian")[[1]],
-    obs(y ~ -1 + varying(~x), family = "gaussian")[[1]],
-    obs(y ~ -1 + x + varying(~z), family = "gaussian")[[1]],
-    obs(y ~ x + varying(~ -1 + z), family = "gaussian")[[1]],
-    obs(y ~ -1 + varying(~ x + z), family = "gaussian")[[1]],
-    obs(y ~ -1 + random(~1), family = "gaussian")[[1]],
-    obs(y ~ -1 + random(~x), family = "gaussian")[[1]],
-    obs(y ~ -1 + x + random(~z), family = "gaussian")[[1]],
-    obs(y ~ x + random(~ -1 + z), family = "gaussian")[[1]],
-    obs(y ~ -1 + random(~ x + z), family = "gaussian")[[1]],
-    obs(y ~ 1 + varying(~ -1 + x) + random(~ -1 + z), family = "gaussian")[[1]]
+    obs(y ~ 1, family = "gaussian")[[1L]],
+    obs(y ~ -1 + varying(~1), family = "gaussian")[[1L]],
+    obs(y ~ x, family = "gaussian")[[1L]],
+    obs(y ~ -1 + varying(~x), family = "gaussian")[[1L]],
+    obs(y ~ -1 + x + varying(~z), family = "gaussian")[[1L]],
+    obs(y ~ x + varying(~ -1 + z), family = "gaussian")[[1L]],
+    obs(y ~ -1 + varying(~ x + z), family = "gaussian")[[1L]],
+    obs(y ~ -1 + random(~1), family = "gaussian")[[1L]],
+    obs(y ~ -1 + random(~x), family = "gaussian")[[1L]],
+    obs(y ~ -1 + x + random(~z), family = "gaussian")[[1L]],
+    obs(y ~ x + random(~ -1 + z), family = "gaussian")[[1L]],
+    obs(y ~ -1 + random(~ x + z), family = "gaussian")[[1L]],
+    obs(y ~ 1 + varying(~ -1 + x) + random(~ -1 + z), family = "gaussian")[[1L]]
   )
   out_list <- list(
     list(
@@ -133,10 +145,10 @@ test_that("formula incrementation logic is correct", {
 })
 
 test_that("non-lag term extraction from language objects is correct", {
-  expect_identical(extract_nonlags_lang(quote(x + z)), c("x", "z"))
-  expect_identical(extract_nonlags_lang(quote(x + fun(y))), c("x", "y"))
-  expect_identical(extract_nonlags_lang(quote(x + lag(y))), c("x"))
-  expect_identical(extract_nonlags_lang(quote(x + fun(y, lag(z)))), c("x", "y"))
+  expect_identical(find_nonlags(quote(x + z)), c("x", "z"))
+  expect_identical(find_nonlags(quote(x + fun(y))), c("x", "y"))
+  expect_identical(find_nonlags(quote(x + lag(y))), c("x"))
+  expect_identical(find_nonlags(quote(x + fun(y, lag(z)))), c("x", "y"))
 })
 
 test_that("internally unsupported families fail", {
@@ -167,4 +179,8 @@ test_that("paste_rows works correctly", {
 
 test_that("message_ outputs", {
   expect_message(message_("This is a message"), "This is a message")
+})
+
+test_that("R_version works", {
+  expect_identical(R_version(), base::getRversion())
 })

@@ -15,7 +15,7 @@ should be used for the initial fit.}
 \item{verbose}{[\code{logical(1)}]\cr If \code{TRUE} (default), print the progress of
 the LFO computations to the console.}
 
-\item{k_threshold}{[\code{numeric(1)}]\cr Threshold for the pareto k estimate
+\item{k_threshold}{[\code{numeric(1)}]\cr Threshold for the Pareto k estimate
 triggering refit. Default is 0.7.}
 
 \item{...}{Additional parameters to \code{dynamite}.}
@@ -56,3 +56,9 @@ Paul-Christian Bürkner, Jonah Gabry, and Aki Vehtari (2020).
 Approximate leave-future-out cross-validation for Bayesian time series
 models, Journal of Statistical Computation and Simulation, 90:14, 2499-2523.
 }
+\seealso{
+Model diagnostics
+\code{\link{loo.dynamitefit}()},
+\code{\link{mcmc_diagnostics}()}
+}
+\concept{diagnostics}

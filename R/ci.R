@@ -1,11 +1,14 @@
 #' Credible Intervals for Dynamite Model Parameters
 #'
+#' Extracts credible intervals from `dynamitefit` object.
+#'
 #' @export
+#' @family output
 #' @param object \[`dynamitefit`]\cr The model fit object.
 #' @param parm Ignored.
 #' @param level \[`numeric(1)`]\cr Credible interval width.
 #' @param ... Ignored.
-#' @return The rows of the resulting matrix will be named using the following
+#' @return The rows of the resulting `matrix` will be named using the following
 #'   logic: `{parameter}_{time}_{category}_{group}` where `parameter` is the
 #'   name of the parameter, `time` is the time index of the parameter,
 #'    `category` specifies the level of the response the parameter

@@ -5,6 +5,7 @@
 #' [posterior::default_convergence_measures()] for details.
 #'
 #' @export
+#' @family diagnostics
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param n \[`integer(1)`]\cr How many rows to print in
 #'   parameter-specific convergence measures. The default is 3. Should be a
@@ -58,7 +59,7 @@ mcmc_diagnostics.dynamitefit <- function(x, n = 3L) {
         ""
       )
       cat(div_str)
-      mt <- x$stanfit@stan_args[[1]]$control$max_treedepth
+      mt <- x$stanfit@stan_args[[1L]]$control$max_treedepth
       mt <- ifelse_(is.null(mt), 10, mt)
       trees_str <- ifelse_(
         n_trees > 0L,

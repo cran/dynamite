@@ -30,12 +30,18 @@
 #'     Samples of the full correlation matrix can be extracted manually as
 #'     `rstan::extract(fit$stanfit, pars = "corr_matrix_psi")` if necessary.
 #'  * `sigma`\cr Standard deviations of gaussian responses.
-#'  * `phi`\cr Dispersion parameters of negative binomial responses.
+#'  * `corr`\cr Pairwise correlations of multivariate gaussian responses.
+#'  * `phi`\cr Describes various distributional parameters, such as:
+#'    - Dispersion parameter of the Negative Binomial distribution.
+#'    - Shape parameter of the Gamma distribution.
+#'    - Precision parameter of the Beta distribution.
+#'    - Degrees of freedom of the Student t-distribution.
 #'  * `omega`\cr Spline coefficients of the regression coefficients `delta`.
 #'  * `omega_alpha`\cr Spline coefficients of time-varying `alpha`.
 #'  * `omega_psi`\cr Spline coefficients of the latent factors `psi`.
 #'
 #' @export
+#' @family output
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param row.names Ignored.
 #' @param optional Ignored.
@@ -67,14 +73,13 @@
 #'   model parameters in a long format. For a wide format, see
 #'   [dynamite::as_draws()].
 #' @examples
-#' results <- as.data.frame(
+#' as.data.frame(
 #'   gaussian_example_fit,
 #'   responses = "y",
-#'   types = "beta",
-#'   summary = FALSE
+#'   types = "beta"
 #' )
 #'
-#' #' # Basic summaries can be obtained automatically with summary = TRUE:
+#' # Basic summaries can be obtained automatically with summary = TRUE
 #' as.data.frame(
 #'   gaussian_example_fit,
 #'   responses = "y",
@@ -82,42 +87,20 @@
 #'   summary = TRUE
 #' )
 #'
-#' #' # Time-varying coefficients delta
-#' as.data.frame(gaussian_example_fit,
+#' # Time-varying coefficients "delta"
+#' as.data.frame(
+#'   gaussian_example_fit,
 #'   responses = "y",
 #'   types = "delta",
 #'   summary = TRUE
 #' )
 #'
-#' if (requireNamespace("dplyr") &&
-#'   requireNamespace("tidyr") &&
-#'   base::getRversion() >= "4.1.0") {
-#'
-#'   results |>
-#'     dplyr::group_by(parameter) |>
-#'     dplyr::summarise(mean = mean(value), sd = sd(value))
-#'
-#'   # Compute MCMC diagnostics via posterior package
-#'   # For this we need to first convert to wide format
-#'   # and then to draws_df object
-#'   results |>
-#'     dplyr::select(parameter, value, .iteration, .chain) |>
-#'     tidyr::pivot_wider(values_from = value, names_from = parameter) |>
-#'     posterior::as_draws() |>
-#'     posterior::summarise_draws()
-#'
-#'   as.data.frame(gaussian_example_fit,
-#'     responses = "y", types = "delta", summary = FALSE
-#'   ) |>
-#'     dplyr::select(parameter, value, time, .iteration, .chain) |>
-#'     tidyr::pivot_wider(
-#'       values_from = value,
-#'       names_from = c(parameter, time),
-#'       names_sep = "_t="
-#'     ) |>
-#'     posterior::as_draws() |>
-#'     posterior::summarise_draws()
-#' }
+#' # Obtain summaries for a specific parameters
+#' as.data.frame(
+#'   gaussian_example_fit,
+#'   parameters = c("tau_y_x", "sigma_y"),
+#'   summary = TRUE
+#' )
 #'
 as.data.frame.dynamitefit <- function(x, row.names = NULL, optional = FALSE,
                                       parameters = NULL, responses = NULL,

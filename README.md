@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# dynamite <a href="https://docs.ropensci.org/dynamite/"><img src="man/figures/logo.png" align="right" height="139"/></a>
+# dynamite: Bayesian Modeling and Causal Inference for Multivariate Longitudinal Data <a href="https://docs.ropensci.org/dynamite/"><img src="man/figures/logo.png" align="right" height="139"/></a>
 
 <!-- badges: start -->
 
@@ -29,10 +29,12 @@ package and the underlying methodology from many other approaches are:
   effects, and time-varying effects modeled via Bayesian P-splines.
 - Joint modeling of multiple measurements per individual (multiple
   channels) based directly on the assumed data generating process.
-- Support for non-Gaussian observations: Currently Gaussian,
-  Categorical, Poisson, Bernoulli, Binomial, Negative Binomial, Gamma,
-  Exponential, and Beta distributions are available and these can be
-  mixed arbitrarily in multichannel models.
+  Individual channels can be univariate or multivariate.
+- Support for various distributions: Currently Gaussian, Multivariate
+  Gaussian, Student t, Categorical, Multinomial, Poisson, Bernoulli,
+  Binomial, Negative Binomial, Gamma, Exponential, and Beta
+  distributions are available, and these can be combined arbitrarily in
+  multichannel models.
 - Allows evaluating realistic long-term counterfactual predictions which
   take into account the dynamic structure of the model by posterior
   predictive distribution simulation.
@@ -93,11 +95,10 @@ gaussian_example_fit
 #> 
 #> Elapsed time (seconds):
 #>         warmup sample
-#> chain:1  4.913  2.755
-#> chain:2  4.842  2.859
+#> chain:1  4.869  2.737
+#> chain:2  4.848  2.877
 #> 
-#> Summary statistics of the time-invariant parameters
-#> (excluding random effects):
+#> Summary statistics of the time- and group-invariant parameters:
 #> # A tibble: 6 × 10
 #>   variable        mean median      sd     mad     q5   q95  rhat ess_b…¹ ess_t…²
 #>   <chr>          <dbl>  <dbl>   <dbl>   <dbl>  <dbl> <dbl> <dbl>   <dbl>   <dbl>
@@ -163,21 +164,17 @@ dynamite](https://ropensci.org/blog/2023/01/31/dynamite-r-package/).
   [`cmdstanr`](https://mc-stan.org/cmdstanr/) (see also
   <https://mc-stan.org>), which is a probabilistic programming language
   for general Bayesian modelling.
-
 - The [`brms`](https://CRAN.R-project.org/package=brms) package also
   uses Stan, and can be used to fit various complex multilevel models.
-
 - Regression modeling with time-varying coefficients based on kernel
   smoothing and least squares estimation is available in package
   [`tvReg`](https://CRAN.R-project.org/package=tvReg). The
   [`tvem`](https://CRAN.R-project.org/package=tvem) package provides
   similar functionality for gaussian, binomial and poisson responses
   with [`mgcv`](https://CRAN.R-project.org/package=mgcv) backend.
-
 - [`plm`](https://CRAN.R-project.org/package=plm) contains various
-  methods to estimate linear models for panel data, e.g. the fixed
-  effect models.
-
+  methods to estimate linear models for panel data, e.g., fixed effect
+  models.
 - [`lavaan`](https://CRAN.R-project.org/package=lavaan) provides tools
   for structural equation modeling, and as such can be used to model
   various panel data models as well.

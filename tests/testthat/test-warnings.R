@@ -68,7 +68,9 @@ test_that("perfect collinearity warns", {
 test_that("too few observations warns", {
   f <- obs(y ~ x + z + w, family = "gaussian")
   test_data <- data.frame(
-    y = rnorm(3), x = rnorm(3), z = rnorm(3),
+    y = rnorm(3),
+    x = rnorm(3),
+    z = rnorm(3),
     w = rnorm(3)
   )
   expect_warning(
@@ -114,7 +116,6 @@ test_that("deterministic channel insufficient initial values warns", {
   )
 })
 
-
 # Specials warnings -------------------------------------------------------
 
 test_that("multiple intercept warns", {
@@ -123,6 +124,53 @@ test_that("multiple intercept warns", {
     paste0(
       "Both time-independent and time-varying intercept specified:\n",
       "i Defaulting to time-varying intercept\\."
+    )
+  )
+})
+
+test_data <- data.frame(
+  y = rnorm(10),
+  x = rnorm(10),
+  time = 1:5,
+  id = rep(1:2, each = 5)
+)
+
+debug <- list(no_compile = TRUE)
+
+test_that("time-varying intercept is removed", {
+  expect_warning(
+    dynamite(
+      obs(y ~ -1 + x + varying(~1), family = "gaussian") +
+        lfactor() +
+        splines(4),
+      test_data,
+      "time",
+      "id",
+      debug = debug
+    ),
+    paste0(
+      "The common time-varying intercept term of channel `y` was removed ",
+      "as channel predictors contain latent factor specified with ",
+      "`nonzero_lambda` as TRUE\\."
+    )
+  )
+})
+
+test_that("time-varying intercept is removed", {
+  expect_warning(
+    dynamite(
+      obs(y ~ x + random(~1), family = "gaussian") +
+        lfactor() +
+        splines(4),
+      test_data,
+      "time",
+      "id",
+      debug = debug
+    ),
+    paste0(
+      "The common time-invariant intercept term of channel `y` was ",
+      "removed as channel predictors contain random intercept and latent ",
+      "factor specified with `nonzero_lambda` as TRUE\\."
     )
   )
 })
@@ -136,6 +184,7 @@ test_that("untyped deterministic warns", {
     )
   )
 })
+
 
 # Predict warnings --------------------------------------------------------
 
@@ -173,12 +222,70 @@ test_that("gaps in newdata with exogenous predictors and no impute warns", {
     predict(gaussian_example_single_fit, newdata = newdata, ndraws = 1)
   )
   expect_match(
-    w[1],
+    w[1L],
     paste0(
       "Time index variable `time` of `newdata` has gaps:\n",
       "i Filling the `newdata` to regular time points\\. This will lead to ",
       "propagation of NA values if the model contains exogenous predictors ",
       "and `impute` is \"none\"\\.|NAs produced"
+    )
+  )
+})
+
+# Stan warnings -----------------------------------------------------------
+
+test_that("unrecognized arguments warns", {
+  expect_warning(
+    dynamite(
+      obs(y ~ x, family = "gaussian") +
+        splines(4),
+      test_data,
+      "time",
+      "id",
+      debug = debug,
+      strange_arg1 = 1L,
+      strange_arg2 = 1L,
+    ),
+    paste0(
+      "Arguments `strange_arg1` and `strange_arg2` passed to rstan sampling ",
+      "function are not recognized and will be ignored\\."
+    )
+  )
+})
+
+test_that("categorical non-glm availability warns", {
+  expect_warning(
+    mockthat::with_mock(
+      dynamite_model = function(...) NULL,
+      dynamite_sampling = function(...) NULL,
+      stan_supports_categorical_logit_glm = function(...) FALSE,
+      dynamite(
+        dformula = obs(y ~ 1, family = "categorical"),
+        data = data.frame(y = c("A", "B"), time = c(1, 2)),
+        time = "time"
+      )
+    ),
+    paste0(
+      "Efficient GLM variant of the categorical likelihood is not available ",
+      "in this version of rstan\\.\n",
+      "i For more efficient sampling, please install ",
+      "a newer version of rstan\\."
+    )
+  )
+})
+
+test_that("windows and old rstan warns on attach", {
+  out <- mockthat::with_mock(
+    stan_version = function(...) "2.23",
+    is_windows = function(...) TRUE,
+    R_version = function(...) "4.2.0",
+     capture.output(startup(), type = "message")
+  )
+  expect_match(
+    out[1L],
+    paste0(
+      "Please update your `rstan` and `StanHeaders` installations before ",
+      "using `dynamite` with the `rstan` backend by running:"
     )
   )
 })

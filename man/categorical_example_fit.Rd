@@ -35,4 +35,14 @@ categorical_example_fit <- dynamite(
 }
 Note the small number of samples due to size restrictions on CRAN.
 }
+\seealso{
+Example models
+\code{\link{categorical_example}},
+\code{\link{gaussian_example_fit}},
+\code{\link{gaussian_example}},
+\code{\link{gaussian_simulation_fit}},
+\code{\link{multichannel_example_fit}},
+\code{\link{multichannel_example}}
+}
+\concept{examples}
 \keyword{datasets}

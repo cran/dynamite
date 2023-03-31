@@ -1,10 +1,12 @@
 #' Extract Fitted Values of a Dynamite Model
 #'
-#' Fitted values for a `dynamitefit` object, i.e., \eqn{E(y_t | newdata, \theta)}
-#' where \eqn{\theta} contains all the model parameters. See also
+#' Fitted values for a `dynamitefit` object, i.e.,
+#' \eqn{E(y_t | newdata, \theta)} where \eqn{\theta} contains all the
+#' model parameters. See also
 #' [dynamite::predict.dynamitefit()] for multi-step predictions.
 #'
 #' @export
+#' @family prediction
 #' @inheritParams predict.dynamitefit
 #' @param newdata \[`data.frame`]\cr Data used in predictions.
 #'   If `NULL` (default), the data used in model estimation is used for

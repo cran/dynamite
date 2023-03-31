@@ -2,14 +2,14 @@
 #'
 #' @param x A `formula` object.
 #' @noRd
-formula_specials <- function(x) {
-  out <- list(formula = NULL, specials = NULL, coefs = NULL)
+formula_specials <- function(x, original, family) {
   xt <- terms(x, specials = formula_special_funs)
   xt_specials <- attr(xt, "specials")[formula_special_funs]
   xt_variables <- attr(xt, "variables")
   xt_terms <- attr(xt, "term.labels")
+  specials <- list()
   for (y in formula_special_funs) {
-    out$specials[[y]] <- onlyif(
+    specials[[y]] <- onlyif(
       !is.null(xt_specials[[y]]),
       xt_variables[[xt_specials[[y]] + 1]][[2]]
     )
@@ -97,26 +97,27 @@ formula_specials <- function(x) {
     )
   } else {
     y <- as.character(xt_variables[[2]])
-    stopifnot_(
+    x <- ifelse_(
       any_icpt,
-      c(
-        "Invalid formula for response variable {.var {y}}:",
-        `x` = "There are no predictors nor an intercept term."
-      )
+      as.formula(paste0(y, "~ 1")),
+      as.formula(paste0(y, "~ -1"))
     )
-    x <- as.formula(paste0(y, "~ 1"))
   }
   xt <- formula_terms(x)
-  out$formula <- x
-  out$fixed <- which(xt %in% fixed_terms)
-  out$has_fixed_intercept <- as.logical(fixed_icpt)
-  out$varying <- which(xt %in% varying_terms)
-  out$has_varying_intercept <- as.logical(varying_icpt)
-  out$random <- which(xt %in% random_terms)
-  out$has_random_intercept <- as.logical(random_icpt)
-  out
+  list(
+    response = deparse1(formula_lhs(x)),
+    formula = x,
+    family = family,
+    original = original,
+    specials = specials,
+    fixed = which(xt %in% fixed_terms),
+    has_fixed_intercept = as.logical(fixed_icpt),
+    varying = which(xt %in% varying_terms),
+    has_varying_intercept = as.logical(varying_icpt),
+    random = which(xt %in% random_terms),
+    has_random_intercept = as.logical(random_icpt)
+  )
 }
-
 
 #' Process Formulas for Deterministic Channels and Get Past Value Definitions
 #'
@@ -205,35 +206,90 @@ deterministic_response <- function(y) {
       resp = gsub("logical\\((.*)\\)", "\\1", y, perl = TRUE)
     )
   } else {
-    warning_(c(
-      "No type specified for deterministic channel {.var {y}}:",
-      `i` = "Assuming type is {.cls numeric}."
-    ))
+    warning_(
+      c(
+        "No type specified for deterministic channel {.var {y}}:",
+        `i` = "Assuming type is {.cls numeric}."
+      )
+    )
     list(type = "numeric", resp = y)
   }
 }
 
 #' Computes All Specials Defined in a Formula in the Context of the Data
 #'
-#' @param dformula \[`dformula`]\cr The model formula object.
+#' @param dformula \[`dformula`]\cr A model formula object
 #' @param data \[`data.table`]\cr Data containing the variables used for
 #'   the special definitions in the formula.
+#' @param check \[`logical(1)`]\cr Should the evaluated specials be checked
+#'   for validity?
 #' @noRd
-evaluate_specials <- function(dformula, data) {
-  lapply(seq_along(dformula), function(i) {
-    if (length(dformula[[i]]$specials) > 0L) {
-      out <- list()
-      for (spec in formula_special_funs) {
-        spec_formula <- dformula[[i]]$specials[[spec]]
-        if (!is.null(spec_formula)) {
-          out[[spec]] <- data[, eval(spec_formula)]
-        }
+evaluate_specials <- function(dformula, data, check = TRUE) {
+  if (length(dformula$specials) == 0L) {
+    return(NULL)
+  }
+  out <- list()
+  y <- dformula$name
+  for (spec in formula_special_funs) {
+    spec_formula <- dformula$specials[[spec]]
+    if (!is.null(spec_formula)) {
+      spec_eval <- tryCatch(
+        data[, eval(spec_formula)],
+        error = function(e) e,
+        warning = function(w) w
+      )
+      stopifnot_(
+        !inherits(spec_eval, c("warning", "error")),
+        c(
+          "Unable to evaluate {.fun {spec}} for response variable
+           {.var {y}}:",
+          `x` = spec_eval$message
+        )
+      )
+      if (check) {
+        do.call(paste0("check_", spec), args = list(y = y, x = spec_eval))
       }
-      out
-    } else {
-      NULL
+      out[[spec]] <- spec_eval
     }
-  })
+  }
+  out
+}
+
+#' Check that a number of trials definition is valid
+#'
+#' @param y \[`character(1)`]\cr Name of the response variable.
+#' @param x \[`character(1)`]\cr Values of the trials specification.
+#' @noRd
+check_trials <- function(y, x) {
+  stopifnot_(
+    !inherits(x, "factor"),
+    c(
+      "Invalid {.fun trials} definition for response variable {.var {y}}:",
+      `x` = "Number of trials cannot be a {.cls factor}."
+    )
+  )
+  stopifnot_(
+    all(x >= 1.0) && all(x == as.integer(x)),
+    c(
+      "Invalid {.fun trials} definition for response variable {.var {y}}:",
+      `x` = "Number of trials must contain only positive integers."
+    )
+  )
+}
+
+#' Check that an offset definition is valid
+#'
+#' @param y \[`character(1)`]\cr Name of the response variable.
+#' @param x \[`character(1)`]\cr Values of the offset specification.
+#' @noRd
+check_offset <- function(y, x) {
+  stopifnot_(
+    !inherits(x, "factor"),
+    c(
+      "Invalid {.fun offset} definition for response variable {.var {y}}:",
+      `x` = "Offset cannot be a {.cls factor}."
+    )
+  )
 }
 
 #' Retrieve the Corresponding Term of a Special Variable in a Formula
@@ -243,7 +299,6 @@ evaluate_specials <- function(dformula, data) {
 #'   The `"variables"` attribute of a `terms` object.
 #' @param term_labels \[`character()`]\cr
 #'   The `"term.labels"` attribute of a `terms` object.
-#'
 #' @noRd
 get_special_term_indices <- function(special, vars, term_labels) {
   out <- integer(length(special))

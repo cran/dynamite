@@ -4,6 +4,7 @@
 #' splines used for the time-varying coefficients \eqn{\delta}.
 #'
 #' @export
+#' @family formulas
 #' @param df \[`integer(1)`]\cr Degrees of freedom, i.e., the total number of
 #'   spline coefficients. See [splines::bs()]. Note that the knots are always
 #'   defined as an equidistant sequence on the interval starting from the first
@@ -14,11 +15,11 @@
 #'   (unrestricted) positive integer.
 #' @param lb_tau \[`numeric()`]\cr Hard constraint(s) on the lower bound of the
 #'   standard deviation parameters \eqn{\tau} of the random walk priors. Can be
-#'   useful in avoiding divergences in some cases. See also `noncentered`
+#'   useful in avoiding divergences in some cases. See also the `noncentered`
 #'   argument. Can be a single positive value, or vector defining the
 #'   lower bound separately for each channel, even for channels without
 #'   varying effects. The ordering is based on the order of channel definitions
-#'   in the `dynamiteformula`.
+#'   in the `dynamiteformula` object.
 #' @param noncentered \[`logical()`]\cr If `TRUE`, use a noncentered
 #'   parameterization for the spline coefficients. Default is `FALSE`. Try
 #'   changing this if you encounter divergences or other problems in sampling

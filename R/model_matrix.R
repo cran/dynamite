@@ -20,20 +20,21 @@ full_model.matrix <- function(dformula, data, verbose) {
     for (type in c("fixed", "varying", "random")) {
       type_formula <- get_type_formula(dformula[[i]], type)
       if (!is.null(type_formula)) {
-        # Intercept is not part of X
-        model_matrices_type[[i]][[type]] <- remove_intercept(
-          stats::model.matrix.lm(
-            type_formula,
-            data = data,
-            na.action = na.pass
-          )
+        model_matrices_type[[i]][[type]] <- stats::model.matrix.lm(
+          type_formula,
+          data = data,
+          na.action = na.pass
         )
       }
     }
-    model_matrices[[i]] <- do.call(cbind, model_matrices_type[[i]])
+    tmp <- do.call(cbind, model_matrices_type[[i]])
+    ifelse_(identical(length(tmp), 0L),
+      model_matrices[[i]] <- matrix(nrow = nrow(mm), ncol = 0),
+      model_matrices[[i]] <- tmp
+    )
   }
   model_matrix <- do.call(cbind, model_matrices)
-  u_names <- unique(colnames(model_matrix))
+  u_names <- setdiff(unique(colnames(model_matrix)), "(Intercept)")
   model_matrix <- model_matrix[, u_names, drop = FALSE]
   y_names <- get_responses(dformula)
   empty_list <- setNames(
@@ -44,12 +45,10 @@ full_model.matrix <- function(dformula, data, verbose) {
   attr(model_matrix, "fixed") <- empty_list
   attr(model_matrix, "varying") <- empty_list
   attr(model_matrix, "random") <- empty_list
-  model_df <- as.data.frame(model_matrix)
   for (i in seq_along(model_matrices)) {
     for (type in types) {
       if (!is.null(model_matrices_type[[i]][[type]])) {
-        model_df_type <- as.data.frame(model_matrices_type[[i]][[type]])
-        cols <- which(model_df %in% model_df_type)
+        cols <- which(u_names %in% colnames(model_matrices_type[[i]][[type]]))
         attr(model_matrix, type)[[i]] <- setNames(cols, u_names[cols])
       } else {
         attr(model_matrix, type)[[i]] <- integer(0L)
@@ -118,53 +117,29 @@ test_collinearity <- function(y, mm, data) {
   }
 }
 
-#' A streamlined Version of `full_model.matrix` for Prediction
+#' A Streamlined Version of `full_model.matrix` for Prediction
 #'
-#' @param formula_list \[`list`]\cr A `list` of `formula` objects.
-#' @param newdata \[`data.table`]\cr Data containing the variables in the model.
-#' @param idx \[`integer()`]\cr A vector of row indices to subset with.
+#' @param dformula \[`dynamiteformula`]\cr Formulas for stochastic channels.
+#' @param sub \[`data.table`]\cr Subset of data containing
+#'   the variables in the model.
 #' @param u_names \[`character()`]\cr A vector of unique column names of
 #'   the resulting matrix.
 #' @noRd
-full_model.matrix_predict <- function(formula_list, newdata_resp, newdata_pred,
-                                      idx_resp, idx_pred, n_draws, u_names) {
-  sub_resp <- newdata_resp[idx_resp, ]
-  sub_pred <- newdata_pred[idx_pred, ]
-  sub <- cbind(sub_resp, sub_pred)
-  model_matrices <- lapply(formula_list, function(x) {
+full_model.matrix_predict <- function(dformula, sub, u_names) {
+  model_matrices <- lapply(dformula, function(x) {
     model_matrices_type <- list()
     for (type in c("fixed", "varying", "random")) {
       type_formula <- get_type_formula(x, type)
       if (!is.null(type_formula)) {
-        model_matrices_type[[type]] <- remove_intercept(
-          stats::model.matrix.lm(
-            type_formula,
-            data = sub,
-            na.action = na.pass
-          )
+        model_matrices_type[[type]] <- stats::model.matrix.lm(
+          type_formula,
+          data = sub,
+          na.action = na.pass
         )
       }
     }
     do.call(cbind, model_matrices_type)
   })
   model_matrix <- do.call(cbind, model_matrices)
-  model_matrix <- model_matrix[,
-    !duplicated(colnames(model_matrix)),
-    drop = FALSE
-  ]
   model_matrix[, u_names, drop = FALSE]
-}
-
-#' Remove Intercept from the Model Matrix
-#'
-#' @param x A model matrix from `model.matrix.lm`
-#' @noRd
-remove_intercept <- function(x) {
-  idx <- which(attr(x, "assign") == 0L)
-  if (length(idx) > 0L) {
-    a <- attr(x, "assign")[-idx]
-    x <- x[, -idx, drop = FALSE]
-    attr(x, "assign") <- a
-  }
-  x
 }

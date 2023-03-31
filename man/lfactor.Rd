@@ -6,29 +6,16 @@
 \usage{
 lfactor(
   responses = NULL,
-  noncentered_lambda = TRUE,
-  noncentered_psi = FALSE,
   nonzero_lambda = TRUE,
-  correlated = TRUE
+  correlated = TRUE,
+  noncentered_psi = FALSE
 )
 }
 \arguments{
-\item{responses}{[\code{character()}]\cr Names of the responses for which the
+\item{responses}{[\code{character()}]\cr Names of the responses that the
 factor should affect. Default is all responses defined with
-\code{obs} except categorical response, which does not (yet) support factor
+\code{obs} except categorical responses, which do not (yet) support the factor
 component.}
-
-\item{noncentered_lambda}{[\code{logical()}]\cr If \code{TRUE} (the default), use a
-noncentered parametrization for factor loadings. Should be a logical
-vector matching the length of \code{responses} or a single logical value in case
-\code{responses} is \code{NULL}. Try
-changing this if you encounter divergences or other problems in sampling.
-Use \code{splines()} to define whether the spline coefficients of the the
-factors are should be centered or not.}
-
-\item{noncentered_psi}{[\code{logical(1)}]\cr If \code{TRUE}, uses a
-noncentered parametrization for spline coefficients of all the factors.
-The number of knots is based \code{splines()} call.}
 
 \item{nonzero_lambda}{[\code{logical()}]\cr If \code{TRUE} (the default), assumes
 that the mean of factor loadings is nonzero or not. Should be a logical
@@ -37,6 +24,10 @@ case \code{responses} is \code{NULL}. See details.}
 
 \item{correlated}{[\code{logical()}]\cr If \code{TRUE} (the default), the latent
 factors are assumed to be correlated between channels.}
+
+\item{noncentered_psi}{[\code{logical(1)}]\cr If \code{TRUE}, uses a
+noncentered parametrization for spline coefficients of all the factors.
+The number of knots is based \code{splines()} call.}
 }
 \value{
 An object of class \code{latent_factor}.
@@ -45,11 +36,12 @@ An object of class \code{latent_factor}.
 This function can be used as part of \code{\link[=dynamiteformula]{dynamiteformula()}} to define
 a common latent factor component. The latent factor is modeled as a spline
 similarly as a time-varying intercept, but instead of having equal effect on
-each group, there is an additional loading variable for each group so that in
-the linear predictor we have a term \eqn{\lambda_i \psi_t} for each group i.
-In order to keep the full the factor loadings \eqn{\lambda}, the latent
-factor \eqn{\psi} and the full model identifiable, some restrictions are
-added to the model. Details will be available in an upcoming paper.
+each group, there is an additional loading variable for each group so that
+in the linear predictor we have a term \eqn{\lambda_i \psi_t} for each
+group \eqn{i}. In order to keep the full factor loadings \eqn{\lambda},
+the latent factor \eqn{\psi} and the full model identifiable, some
+restrictions are added to the model. Details will be available in an
+upcoming paper. This component should be treated as experimental feature.
 }
 \examples{
 # three channel model with common factor affecting for responses x and y
@@ -57,8 +49,17 @@ obs(y ~ 1, family = "gaussian") +
   obs(x ~ 1, family = "poisson") +
   obs(z ~ 1, family = "gaussian") +
   lfactor(
-    responses = c("y", "x"), noncentered_lambda = c(FALSE, TRUE),
-    noncentered_psi = FALSE, nonzero_lambda = c(TRUE, FALSE)
+    responses = c("y", "x"), nonzero_lambda = c(TRUE, FALSE),
+    correlated = TRUE, noncentered_psi = FALSE
   )
 
 }
+\seealso{
+Model formula construction
+\code{\link{dynamiteformula}()},
+\code{\link{dynamite}()},
+\code{\link{lags}()},
+\code{\link{random_spec}()},
+\code{\link{splines}()}
+}
+\concept{formulas}
