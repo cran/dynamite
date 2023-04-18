@@ -1,3 +1,16 @@
+# dynamite 1.3.3
+
+  * Fixed a partial argument name issue in the internal `update()` method used by `lfo()`.
+
+# dynamite 1.3.2
+
+  * Fixed the regularization of the default priors so that they match with the priors vignette.
+  * Fixed an issue with the `update()` method for model fit objects without a group variable.
+  * Fixed an issue with the `update()` method in `lfo()`.
+  * Fixed an issue with `"tau"` and `"tau_alpha"` type parameters with the `as_draws()` method for categorical responses.
+  * Fixed an issue with Stan code generation for models with time-varying covariates for categorical responses.
+  * Fixed an issue with `formula.dynamitefit()` when the model contained a `splines` component.
+
 # dynamite 1.3.1
 
   * Fixed an incorrect URL in the main vignette.

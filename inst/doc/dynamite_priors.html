@@ -337,7 +337,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 1, &amp;\text{otherwise}
 \end{cases},
 \]</span>
-where <span class="math inline">\(SD(y)\)</span> is the standard deviation of the response variable as over groups and non-fixed time points.</p>
+where <span class="math inline">\(\mbox{SD}(y)\)</span> is the standard deviation of the response variable as over groups and non-fixed time points.</p>
 <div id="regression-coefficients" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Regression coefficients</h2>
 <p>We define the default prior for a time-invariant regression coefficients <span class="math inline">\(\beta\)</span> as well for the first time-varying coefficient <span class="math inline">\(\delta_1\)</span> as zero-mean normal distribution with standard deviation of
@@ -379,10 +379,10 @@ See the Stan function reference at for possible distributions. For custom priors
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>p</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;           parameter response                prior      type category</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 1  sigma_nu_y_alpha        y       normal(0, 3.1)  sigma_nu         </span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      sigma_nu_y_z        y       normal(0, 6.7)  sigma_nu         </span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      sigma_nu_y_z        y       normal(0, 3.1)  sigma_nu         </span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3           alpha_y        y     normal(1.5, 3.1)     alpha         </span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4       tau_alpha_y        y       normal(0, 3.1) tau_alpha         </span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 6.7)      beta         </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 3.1)      beta         </span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6         delta_y_x        y       normal(0, 3.1)     delta         </span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7    delta_y_y_lag1        y       normal(0, 1.8)     delta         </span></span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8           tau_y_x        y       normal(0, 3.1)       tau         </span></span>
@@ -397,7 +397,7 @@ See the Stan function reference at for possible distributions. For custom priors
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 2      sigma_nu_y_z        y         normal(0, 1)  sigma_nu         </span></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 3           alpha_y        y     normal(1.5, 3.1)     alpha         </span></span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 4       tau_alpha_y        y       normal(0, 3.1) tau_alpha         </span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 6.7)      beta         </span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 5          beta_y_z        y       normal(0, 3.1)      beta         </span></span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 6         delta_y_x        y       normal(0, 3.1)     delta         </span></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 7    delta_y_y_lag1        y       normal(0, 1.8)     delta         </span></span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; 8           tau_y_x        y       normal(0, 3.1)       tau         </span></span>
