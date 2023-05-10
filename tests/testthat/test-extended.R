@@ -111,7 +111,7 @@ test_that("multinomial fit and predict work", {
 
 test_that("non-glm categorical fit works", {
   skip_if_not(run_extended_tests)
-
+  skip_on_os("mac") # Seems to segfault on MacOS
   expect_error(
     mockthat::with_mock(
       stan_supports_categorical_logit_glm = function(...) FALSE,
@@ -124,7 +124,8 @@ test_that("non-glm categorical fit works", {
         iter = 2000,
         chains = 1,
         refresh = 0,
-        verbose = FALSE
+        verbose = FALSE,
+        threads_per_chain = 2
       )
     ),
     NA
@@ -189,7 +190,7 @@ test_that("predict with random variable trials works", {
 })
 
 test_that("shrinkage for splines is functional", {
-  skip_if_not(run_extended_tests)
+  skip("Shrinkage feature removed at least for now.")
 
   set.seed(1)
   expect_error(
@@ -220,6 +221,7 @@ test_that("shrinkage for splines is functional", {
 test_that("update without recompile works", {
   skip_if_not(run_extended_tests)
 
+  set.seed(0)
   gaussian_fit <- dynamite(
     dformula =
       obs(
@@ -233,7 +235,7 @@ test_that("update without recompile works", {
     group = "id",
     iter = 2000,
     warmup = 1000,
-    thin = 10,
+    thin = 1,
     chains = 2,
     cores = 2,
     refresh = 0,
@@ -248,14 +250,15 @@ test_that("update without recompile works", {
     fit <- update(
       gaussian_fit,
       data = gaussian_example,
-      warmup = 500,
-      iter = 1000
+      warmup = 1000,
+      iter = 2000,
+      thin = 1
     ),
     NA
   )
   # Internal update_ function
   expect_error(
-    lfo(gaussian_fit, L = 10, chains = 4, verbose_stan = FALSE),
+    lfo(gaussian_fit, L = 20, chains = 4, verbose_stan = FALSE),
     NA
   )
 })

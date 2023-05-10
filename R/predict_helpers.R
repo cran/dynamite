@@ -245,10 +245,27 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
   #  by = group_var,
   #  env = list(time_var = time_var)
   # ]$V1
-  split_data <- split(data, by = group_var)
-  time_duplicated <- unlist(
-    lapply(split_data, function(x) any(duplicated(x[[time_var]])))
+  time <- sort(unique(data[[time_var]]))
+  time_ivals <- diff(time)
+  time_scale <- min(diff(time))
+  full_time <- seq(time[1L], time[length(time)], by = time_scale)
+  data_groups <- as.integer(data[[group_var]])
+  group <- unique(data_groups)
+  n_group <- length(group)
+  time_duplicated <- logical(n_group)
+  time_groups <- list(
+    has_missing = logical(n_group),
+    has_gaps = logical(n_group)
   )
+  time_missing <- logical(n_group)
+  for (i in seq_len(n_group)) {
+    idx_group <- which(data_groups == group[i])
+    sub <- data[idx_group, ]
+    time_duplicated[i] <- any(duplicated(sub[[time_var]]))
+    time_groups$has_missing[i] <- !identical(sub[[time_var]], full_time)
+    time_groups$has_gaps[i] <- length(idx_group) !=
+      (diff(range(sub[[time_var]])) + 1L) * time_scale
+  }
   d <- which(time_duplicated)
   stopifnot_(
     all(!time_duplicated),
@@ -258,10 +275,8 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
              {cli::qty(d)}{?has/have} duplicate observations."
     )
   )
-  time <- sort(unique(data[[time_var]]))
   if (length(time) > 1L) {
     original_order <- colnames(data)
-    full_time <- seq(time[1L], time[length(time)], by = time_scale)
     # time_groups <- data[,
     # {
     #  has_missing = !identical(time_var, full_time)
@@ -275,16 +290,6 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
     #  time_scale = time_scale
     # )
     # ]
-    time_groups <- list(
-      has_missing = unlist(
-        lapply(split_data, function(x) !identical(x[[time_var]], full_time))
-      ),
-      has_gaps = unlist(
-        lapply(split_data, function(x) {
-          nrow(x) != (diff(range(x[[time_var]])) + 1L) * time_scale
-        })
-      )
-    )
     if (any(time_groups$has_missing)) {
       if (any(time_groups$has_gaps)) {
         warning_(c(
@@ -618,8 +623,14 @@ prepare_eval_env_univariate <- function(e, resp, cvars, samples, nu_samples,
   e$has_random_intercept <- cvars$has_random_intercept
   e$has_lfactor <- cvars$has_lfactor
   e$resp <- resp
-  e$phi <- c(samples[[phi]][idx])
-  e$sigma <- c(samples[[sigma]][idx])
+  e$phi <- onlyif(
+    !is.null(samples[[phi]]),
+    rep_len(c(samples[[phi]][idx]), length.out = e$k)
+  )
+  e$sigma <-  onlyif(
+    !is.null(samples[[sigma]]),
+    rep_len(c(samples[[sigma]][idx]), length.out = e$k)
+  )
   if (has_random_effects) {
     nus <- make.unique(rep(paste0("nu_", resp), e$K_random))
     e$nu <- nu_samples[, , nus, drop = FALSE]
@@ -823,7 +834,8 @@ prepare_eval_env_multivariate <- function(e, resp, resp_levels, cvars,
     e[[K_varying]] <- cvars[[j]]$K_varying
     e[[J_random]] <- cvars[[j]]$J_random
     e[[K_random]] <- cvars[[j]]$K_random
-    onlyif(!is.null(samples[[phi]]),e[[phi]] <- c(samples[[phi]][idx]))
+    # No phi parameters yet
+    # onlyif(!is.null(samples[[phi]]), e[[phi]] <- c(samples[[phi]][idx]))
     onlyif(!is.null(samples[[sigma]]), e$sigma[, i] <- c(samples[[sigma]][idx]))
     # index j here, not from cvars
     if (has_random_effects[j]) {
@@ -1056,7 +1068,7 @@ predict_expr$predicted$gaussian <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rnorm(k, xbeta, sigma)[idx_out]
+    value = rnorm(k_obs, xbeta[idx_out], sigma[idx_out])
   )
 "
 
@@ -1108,22 +1120,22 @@ predict_expr$predicted$multinomial <- "
 "
 
 predict_expr$predicted$binomial <- "
-  prob <- plogis(xbeta)
+  prob <- plogis(xbeta[idx_out])
   data.table::set(
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbinom(k, trials, prob)[idx_out]
+    value = rbinom(k_obs, trials[idx_out], prob)
   )
 "
 
 predict_expr$predicted$bernoulli <- "
-  prob <- plogis(xbeta)
+  prob <- plogis(xbeta[idx_out])
   data.table::set(
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbinom(k, 1, prob)[idx_out]
+    value = rbinom(k_obs, 1, prob)
   )
 "
 
@@ -1133,7 +1145,7 @@ predict_expr$predicted$poisson <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rpois(k, exp_xbeta)[idx_out]
+    value = rpois(k_obs, exp_xbeta[idx_out])
   )
 "
 
@@ -1143,7 +1155,7 @@ predict_expr$predicted$negbin <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rnbinom(k, size = phi, mu = exp_xbeta)[idx_out]
+    value = rnbinom(k_obs, size = phi[idx_out], mu = exp_xbeta[idx_out])
   )
 "
 
@@ -1152,26 +1164,32 @@ predict_expr$predicted$exponential <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rexp(k, rate = exp(-xbeta))[idx_out]
+    value = rexp(k_obs, rate = exp(-xbeta[idx_out]))
   )
 "
 
 predict_expr$predicted$gamma <- "
+  phi_obs <- phi[idx_out]
   data.table::set(
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rgamma(k, shape = phi, rate = phi * exp(-xbeta))[idx_out]
+    value = rgamma(
+      k_obs,
+      shape = phi_obs,
+      rate = phi_obs * exp(-xbeta[idx_out])
+    )
   )
 "
 
 predict_expr$predicted$beta <- "
-  mu <- plogis(xbeta)
+  mu <- plogis(xbeta[idx_out])
+  phi_obs <- phi[idx_out]
   data.table::set(
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbeta(k,  mu * phi, (1 - mu) * phi)[idx_out]
+    value = rbeta(k_obs,  mu * phi_obs, (1 - mu) * phi_obs)
   )
 "
 
@@ -1180,7 +1198,7 @@ predict_expr$predicted$student <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = (xbeta + sigma * rt(k, phi))[idx_out]
+    value = xbeta[idx_out] + sigma[idx_out] * rt(k_obs, phi[idx_out])
   )
 "
 

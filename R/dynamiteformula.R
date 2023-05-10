@@ -177,11 +177,22 @@ dynamiteformula <- function(formula, family) {
     !"I" %in% all.names(formula),
     "{.code I(.)} is not supported by {.fun dynamiteformula}."
   )
-  dims <- dynamiteformula_(
-    formula = formula,
-    original = formula,
-    family = family
-  )
+  if (is_deterministic(family)) {
+    dims <- list(formula_past(formula))
+    resp_parsed <- deterministic_response(deparse1(formula_lhs(formula)))
+    dims[[1L]]$specials$resp_type <- resp_parsed$type
+    dims[[1L]]$response <- resp_parsed$resp
+    dims[[1L]]$original <- formula
+    dims[[1L]]$name <- parse_name(resp_parsed$resp)
+  } else {
+    dims <- parse_formula(formula, family)
+    if (is_binomial(family) || is_multinomial(family)) {
+      stopifnot_(
+        "trials" %in% names(dims[[1L]]$specials),
+        "Formula for a {family$name} channel must include a trials term."
+      )
+    }
+  }
   structure(
     lapply(dims, function(x) {
       dynamitechannel(
@@ -203,31 +214,6 @@ dynamiteformula <- function(formula, family) {
     channel_groups = rep(1L, length(dims)),
     model_topology = 1L
   )
-}
-
-#' Internal Version of `dynamiteformula`
-#'
-#' @inheritParams dynamiteformula
-#' @param original The original `formula` definition.
-#' @noRd
-dynamiteformula_ <- function(formula, original, family, name) {
-  if (is_deterministic(family)) {
-    out <- list(formula_past(formula))
-    resp_parsed <- deterministic_response(deparse1(formula_lhs(formula)))
-    out[[1L]]$specials$resp_type <- resp_parsed$type
-    out[[1L]]$response <- resp_parsed$resp
-    out[[1L]]$original <- original
-    out[[1L]]$name <- parse_name(resp_parsed$resp)
-  } else {
-    out <- parse_formula(formula, original, family)
-    if (is_binomial(family) || is_multinomial(family)) {
-      stopifnot_(
-        "trials" %in% names(out[[1L]]$specials),
-        "Formula for a {family$name} channel must include a trials term."
-      )
-    }
-  }
-  out
 }
 
 #' Create a Channel For a `dynamiteformula` Object Directly
@@ -288,7 +274,7 @@ aux <- function(formula) {
 #'
 #' @param x A `formula` object.
 #' @noRd
-parse_formula <- function(x, original, family) {
+parse_formula <- function(x, family) {
   responses <- all.vars(formula_lhs(x))
   formula_str <- deparse1(formula_rhs(x))
   formula_parts <- strsplit(formula_str, "|", fixed = TRUE)[[1L]]
@@ -343,12 +329,12 @@ parse_formula <- function(x, original, family) {
              appear{?s/} on both sides of the formula for ({cs(responses)})."
     )
   )
-  out <- vector(mode = "list", length = n_responses)
-  for (i in seq_len(n_responses)) {
-    out[[i]] <- formula_specials(formulas[[i]], original, family)
-    out[[i]]$name <- parse_name(responses[i])
-  }
-  out
+  lapply(
+    formulas,
+    formula_specials,
+    original = x,
+    family = family
+  )
 }
 
 #' Parse a Channel Name for a `dynamiteformula`
@@ -420,7 +406,11 @@ print.dynamiteformula <- function(x, ...) {
   print.data.frame(out, right = FALSE)
   if (!is.null(attr(x, "lags"))) {
     k <- attr(x, "lags")$k
-    cat("\nLagged responses added as predictors with: k = ", cs(k), sep = "")
+    type <- attr(x, "lags")$type
+    cat(
+      "\nLagged responses added as ", type, " predictors with: k = ", cs(k),
+      sep = ""
+    )
   }
   if (!is.null(attr(x, "random_spec"))) {
     rand <- which_random(x)
