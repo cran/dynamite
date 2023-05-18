@@ -1,3 +1,11 @@
+# dynamite 1.4.2
+
+  * Added further checks and fixes for backwards compatibility with Stan.
+  * Fixed code generation for intercept-only categorical model.
+
+# dynamite 1.4.2
+  * Fixed code generation in the transformed data block to be backwards compatible with Stan.
+
 # dynamite 1.4.1
 
   * Fixed an issue in `dynamite()` data parsing that caused substantial memory usage in some instances.
