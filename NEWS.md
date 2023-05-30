@@ -1,9 +1,13 @@
+# dynamite 1.4.3
+
+  * Fixed an issue with `formula.dynamitefit()` with models defined using `lags()` with a vector `k` argument with more than one value.
+  * Fixed an issue in `lfo` method which resulted wrong ELPD estimates in panel data setting.
+  * Fixed an issue in `lfo` method which in case of lagged responses caused the ELPD computations to skip last time points.
+
 # dynamite 1.4.2
 
   * Added further checks and fixes for backwards compatibility with Stan.
   * Fixed code generation for intercept-only categorical model.
-
-# dynamite 1.4.2
   * Fixed code generation in the transformed data block to be backwards compatible with Stan.
 
 # dynamite 1.4.1
