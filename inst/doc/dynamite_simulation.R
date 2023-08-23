@@ -5,6 +5,7 @@ knitr::opts_chunk$set(
 )
 library("dynamite")
 suppressPackageStartupMessages(library("ggplot2"))
+data.table::setDTthreads(1) # For CRAN
 
 ## ----categinit, eval=FALSE, echo=TRUE-----------------------------------------
 #  library(dynamite)

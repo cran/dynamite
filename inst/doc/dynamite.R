@@ -16,6 +16,7 @@ options(dplyr.summarise.inform = FALSE)
 options(crayon.enabled = FALSE)
 options(dplyr.summarise.inform = FALSE)
 set.seed(0)
+data.table::setDTthreads(1) # For CRAN
 
 ## ----dynamiteinstall, echo=TRUE, eval=FALSE-----------------------------------
 #  install.packages("dynamite")
