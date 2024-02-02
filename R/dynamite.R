@@ -45,23 +45,29 @@
 #'   needs the actual `CmdStan` software. See https://mc-stan.org/cmdstanr/ for
 #'   details.
 #' @param verbose \[`logical(1)`]\cr All warnings and messages are suppressed
-#'   if set to `FALSE`. Defaults to `TRUE`.
+#'   if set to `FALSE`. Defaults to `TRUE`. Setting this to `FALSE` will also
+#'   disable checks for perfect collinearity in the model matrix.
 #' @param verbose_stan \[`logical(1)`]\cr This is the `verbose` argument for
 #'   [rstan::sampling()]. Defaults to `FALSE`.
 #' @param stanc_options \[`list()`]\cr This is the `stanc_options` argument
 #'   passed to the compile method of a `CmdStanModel` object via
 #'   [cmdstanr::cmdstan_model()] when `backend = "cmdstanr"`.
-#'   Defaults to `list("O1")` to enable level one compiler optimizations.
+#'   Defaults to `list("O0")`. To enable level one compiler optimizations,
+#'   use `list("O1")`.
 #' @param threads_per_chain \[`integer(1)`]\cr A Positive integer defining the
 #'   number of parallel threads to use within each chain. Default is `1`. See
 #'   [rstan::rstan_options()] and [cmdstanr::sample()] for details.
-#' @param grainsize \[`integer(1)`]\cr A Positive integer defining the
+#' @param grainsize \[`integer(1)`]\cr A positive integer defining the
 #'   suggested size of the partial sums when using within-chain parallelization.
 #'   Default is number of time points divided by `threads_per_chain`.
 #'   Setting this to `1` leads the workload division entirely to the internal
 #'   scheduler. The performance of the within-chain parallelization can be
 #'   sensitive to the choice of `grainsize`, see Stan manual on reduce-sum for
 #'   details.
+#' @param custom_stan_model \[`character(1)`]\cr An optional character string
+#'   that either contains a customized stan model code or a path to a `.stan`
+#'   file that contains the code. Using this will override the generated model
+#'   code. For expert users only.
 #' @param debug \[`list()`]\cr A named list of form `name = TRUE` indicating
 #'   additional objects in the environment of the `dynamite` function which are
 #'   added to the return object. Additionally, values `no_compile = TRUE` and
@@ -152,9 +158,9 @@
 dynamite <- function(dformula, data, time, group = NULL,
                      priors = NULL, backend = "rstan",
                      verbose = TRUE, verbose_stan = FALSE,
-                     stanc_options = list("O1"),
+                     stanc_options = list("O0"),
                      threads_per_chain = 1L, grainsize = NULL,
-                     debug = NULL, ...) {
+                     custom_stan_model = NULL, debug = NULL, ...) {
   dynamite_check(
     dformula,
     data,
@@ -166,7 +172,13 @@ dynamite <- function(dformula, data, time, group = NULL,
     stanc_options,
     threads_per_chain,
     grainsize,
+    custom_stan_model,
     debug
+  )
+  custom_stan_model <- ifelse_(
+    isTRUE(grepl("\\.stan$", custom_stan_model, perl = TRUE)),
+    paste(readLines(custom_stan_model), collapse = "\n"),
+    custom_stan_model
   )
   backend <- try(match.arg(backend, c("rstan", "cmdstanr")), silent = TRUE)
   stopifnot_(
@@ -205,6 +217,7 @@ dynamite <- function(dformula, data, time, group = NULL,
     stanc_options,
     threads_per_chain,
     grainsize,
+    custom_stan_model,
     debug,
     ...
   )
@@ -254,7 +267,8 @@ dynamite <- function(dformula, data, time, group = NULL,
 #' @noRd
 dynamite_check <- function(dformula, data, time, group, priors, verbose,
                            verbose_stan, stanc_options,
-                           threads_per_chain, grainsize, debug) {
+                           threads_per_chain, grainsize,
+                           custom_stan_model, debug) {
   stopifnot_(
     !missing(dformula),
     "Argument {.arg dformula} is missing."
@@ -304,6 +318,15 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
     "Argument {.arg verbose_stan} must be a single {.cls logical} value."
   )
   stopifnot_(
+    checkmate::test_string(x = custom_stan_model, null.ok = TRUE),
+    "Argument {.arg custom_stan_model} must be a single {.cls character} string."
+  )
+  stopifnot_(
+    !isTRUE(grepl("\\.stan$", custom_stan_model, perl = TRUE)) ||
+      file.exists(custom_stan_model),
+    "File {.file {custom_stan_model}} does not exist."
+  )
+  stopifnot_(
     is.null(debug) || is.list(debug),
     "Argument {.arg debug} must be a {.cls list} or NULL."
   )
@@ -326,7 +349,8 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
 #' @noRd
 dynamite_stan <- function(dformulas, data, data_name, group, time,
                           priors, backend, verbose, verbose_stan,
-                          stanc_options, threads_per_chain, grainsize, debug,
+                          stanc_options, threads_per_chain, grainsize,
+                          custom_stan_model, debug,
                           ...) {
   stan_input <- prepare_stan_input(
     dformulas$stoch,
@@ -343,8 +367,8 @@ dynamite_stan <- function(dformulas, data, data_name, group, time,
     grainsize
   )
   stan_input$sampling_vars$grainsize <- grainsize
-  model_code <- onlyif(
-    !isFALSE(debug$model_code),
+  model_code <- ifelse_(
+    !isFALSE(debug$model_code) && is.null(custom_stan_model),
     create_blocks(
       indent = 2L,
       backend = backend,
@@ -353,7 +377,8 @@ dynamite_stan <- function(dformulas, data, data_name, group, time,
       cgvars = stan_input$channel_group_vars,
       mvars = stan_input$model_vars,
       threading = threads_per_chain > 1L
-    )
+    ),
+    custom_stan_model
   )
   sampling_info(dformulas, verbose, debug, backend)
   stopifnot_(
@@ -846,9 +871,9 @@ parse_data <- function(dformula, data, group_var, time_var, verbose) {
     "Non-finite values were found in variable{?s}
     {.var {data_names[!finite_cols]}} of {.arg data}."
   )
+  data.table::setkeyv(data, c(group_var, time_var))
   data <- fill_time(data, group_var, time_var)
   drop_unused(dformula, data, group_var, time_var)
-  data.table::setkeyv(data, c(group_var, time_var))
   data
 }
 
@@ -1063,7 +1088,6 @@ parse_lfactor <- function(lfactor_def, resp, families) {
   out <- list()
   if (!is.null(lfactor_def)) {
     valid_channels <- resp
-    # default, use all channels except categorical
     if (is.null(lfactor_def$responses)) {
       lfactor_def$responses <- valid_channels
     } else {
@@ -1083,7 +1107,7 @@ parse_lfactor <- function(lfactor_def, resp, families) {
     out$has_lfactor <- TRUE
     out$responses <- lfactor_def$responses
     out$noncentered_psi <- lfactor_def$noncentered_psi
-    n_channels <- length(resp)
+    n_channels <- length(lfactor_def$responses)
     out$nonzero_lambda <- lfactor_def$nonzero_lambda
     stopifnot_(
       length(out$nonzero_lambda) %in% c(1L, n_channels),
@@ -1130,8 +1154,10 @@ fill_time <- function(data, group_var, time_var) {
   n_group <- length(group)
   time_duplicated <- logical(n_group)
   time_missing <- logical(n_group)
+  group_bounds <- c(0, data[, max(.I), by = group_var]$V1)
   for (i in seq_len(n_group)) {
-    idx_group <- which(data_groups == group[i])
+    idx_group <- seq(group_bounds[i] + 1, group_bounds[i + 1])
+    #idx_group <- which(data_groups == group[i])
     sub <- data[idx_group, ]
     time_duplicated[i] <- any(duplicated(sub[[time_var]]))
     time_missing[i] <- !identical(sub[[time_var]], full_time)
@@ -1149,26 +1175,27 @@ fill_time <- function(data, group_var, time_var) {
     all(time_ivals[!is.na(time_ivals)] %% time_scale == 0),
     "Observations must occur at regular time intervals."
   )
-
   # time_missing <- data[,
   #  !identical(time_var, full_time),
   #  by = group_var,
   #  env = list(time_var = time_var, full_time = full_time)
   # ]$V1
   if (any(time_missing)) {
+    data_names <- names(data)
     full_data_template <- data.table::as.data.table(
       expand.grid(
-        time = full_time,
-        group = unique(data[[group_var]])
+        group = unique(data[[group_var]]),
+        time = full_time
       )
     )
-    names(full_data_template) <- c(time_var, group_var)
+    names(full_data_template) <- c(group_var, time_var)
     data <- data.table::merge.data.table(
       full_data_template,
       data,
-      by = c(time_var, group_var),
+      by = c(group_var, time_var),
       all.x = TRUE
     )
+    data.table::setcolorder(data, data_names)
   }
   data
 }

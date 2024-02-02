@@ -1,3 +1,25 @@
+# dynamite 1.4.9
+
+  * Added option to input a custom model code for `dynamite` which can be used to tweak some aspects of the model (no checks on the compatibility with the post processing are made).
+  * Changed the default optimization level for `cmdstanr` backend to `O0`, as the `O1` is not necessarily stable in all cases.
+  * Added a new argument `full_diagnostics` to the `print()` method which can be used to control the computation of the ESS and Rhat values. By default, these are now computed only for the time- and group-invariant parameters (which are also printed).
+  * The `print()` method now also warns about possible divergences, treedepth saturation, and low E-BMFI.
+  * Fixed an error related to `predict()` code generation.
+
+# dynamite 1.4.8
+
+  * Made several performance improvements to data parsing.
+  * `dynamite()` will now retain the original column order of `data` in all circumstances.
+
+# dynamite 1.4.7
+
+  * Added a note on priors vignette regarding default priors for $\tau$ parameters.
+  * Fixed `mcmc_diagnostics` function so that HMC diagnostics are checked also for models run with the `cmdstanr` backend.
+  
+# dynamite 1.4.6
+
+  * Fixed the construction of latent factors for categorical responses.
+
 # dynamite 1.4.5
 
   * The `get_data()` method for `dynamitefit` objects now correctly uses the previously defined priors instead of the default ones.

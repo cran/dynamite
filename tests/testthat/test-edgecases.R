@@ -10,8 +10,8 @@ individuals <- 5
 total_obs <- timepoints * individuals
 
 test_data <- data.frame(
-  time = 1:timepoints,
   group = gl(individuals, timepoints),
+  time = 1:timepoints,
   offset = sample(50:100, size = total_obs, replace = TRUE),
   trials = sample(50:100, size = total_obs, replace = TRUE)
 ) |>
@@ -323,7 +323,7 @@ test_that("latent factors are handled correctly", {
       obs(y3 ~ -1 + x3 + varying(~x1) + trials(trials), family = "binomial") +
       obs(y4 ~ x1 + varying(~ -1 + x2), family = "bernoulli") +
       splines(df = 5) +
-      lfactor(c("y2", "y3"), nonzero_lambda = c(TRUE, FALSE, FALSE)),
+      lfactor(c("y2", "y3"), nonzero_lambda = c(TRUE, FALSE)),
     NA
   )
   expect_equal(
@@ -487,6 +487,8 @@ test_that("data expansion to full time scale works", {
   expected_data_single <- droplevels(expected_data_single)
   expected_data_single$trials <- NULL
   expected_data_single$offset <- NULL
+  expected_data_single$group <- NULL
+  expected_data_single$.group <- 1L
   data.table::setDT(expected_data_single, key = c("time"))
   expect_equal(fit_single$data, expected_data_single, ignore_attr = TRUE)
 })

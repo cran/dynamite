@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -38,7 +38,7 @@ multi_formula <- obs(g ~ lag(g) + lag(logp), family = "gaussian") +
 #    chains = 1, cores = 1, iter = 2000, warmup = 1000, init = 0, refresh = 0,
 #    thin = 5, save_warmup = FALSE)
 
-## ---- eval = FALSE------------------------------------------------------------
+## ----eval = FALSE-------------------------------------------------------------
 #  multichannel_example_fit <- update(multichannel_example_fit,
 #    iter = 2000,
 #    warmup = 1000,
@@ -48,7 +48,7 @@ multi_formula <- obs(g ~ lag(g) + lag(logp), family = "gaussian") +
 #    save_warmup = FALSE
 #  )
 
-## ---- eval = TRUE, echo = FALSE-----------------------------------------------
+## ----eval = TRUE, echo = FALSE------------------------------------------------
 fit <- dynamite(
   multi_formula, data = multichannel_example, 
   time = "time", group = "id", debug = list(no_compile = TRUE))

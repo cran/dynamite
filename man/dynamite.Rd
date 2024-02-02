@@ -16,16 +16,17 @@ dynamite(
   backend = "rstan",
   verbose = TRUE,
   verbose_stan = FALSE,
-  stanc_options = list("O1"),
+  stanc_options = list("O0"),
   threads_per_chain = 1L,
   grainsize = NULL,
+  custom_stan_model = NULL,
   debug = NULL,
   ...
 )
 
 \method{formula}{dynamitefit}(x, ...)
 
-\method{print}{dynamitefit}(x, ...)
+\method{print}{dynamitefit}(x, full_diagnostics = FALSE, ...)
 
 \method{summary}{dynamitefit}(object, ...)
 }
@@ -64,7 +65,8 @@ needs the actual \code{CmdStan} software. See https://mc-stan.org/cmdstanr/ for
 details.}
 
 \item{verbose}{[\code{logical(1)}]\cr All warnings and messages are suppressed
-if set to \code{FALSE}. Defaults to \code{TRUE}.}
+if set to \code{FALSE}. Defaults to \code{TRUE}. Setting this to \code{FALSE} will also
+disable checks for perfect collinearity in the model matrix.}
 
 \item{verbose_stan}{[\code{logical(1)}]\cr This is the \code{verbose} argument for
 \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}}. Defaults to \code{FALSE}.}
@@ -72,19 +74,25 @@ if set to \code{FALSE}. Defaults to \code{TRUE}.}
 \item{stanc_options}{[\code{list()}]\cr This is the \code{stanc_options} argument
 passed to the compile method of a \code{CmdStanModel} object via
 \code{\link[cmdstanr:cmdstan_model]{cmdstanr::cmdstan_model()}} when \code{backend = "cmdstanr"}.
-Defaults to \code{list("O1")} to enable level one compiler optimizations.}
+Defaults to \code{list("O0")}. To enable level one compiler optimizations,
+use \code{list("O1")}.}
 
 \item{threads_per_chain}{[\code{integer(1)}]\cr A Positive integer defining the
 number of parallel threads to use within each chain. Default is \code{1}. See
 \code{\link[rstan:rstan_options]{rstan::rstan_options()}} and \code{\link[cmdstanr:model-method-sample]{cmdstanr::sample()}} for details.}
 
-\item{grainsize}{[\code{integer(1)}]\cr A Positive integer defining the
+\item{grainsize}{[\code{integer(1)}]\cr A positive integer defining the
 suggested size of the partial sums when using within-chain parallelization.
 Default is number of time points divided by \code{threads_per_chain}.
 Setting this to \code{1} leads the workload division entirely to the internal
 scheduler. The performance of the within-chain parallelization can be
 sensitive to the choice of \code{grainsize}, see Stan manual on reduce-sum for
 details.}
+
+\item{custom_stan_model}{[\code{character(1)}]\cr An optional character string
+that either contains a customized stan model code or a path to a \code{.stan}
+file that contains the code. Using this will override the generated model
+code. For expert users only.}
 
 \item{debug}{[\code{list()}]\cr A named list of form \code{name = TRUE} indicating
 additional objects in the environment of the \code{dynamite} function which are
@@ -102,6 +110,11 @@ to the print method for tibbles (see \link[tibble:formatting]{tibble::formatting
 \code{formula()}.}
 
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
+
+\item{full_diagnostics}{By default, the effective sample size (ESS) and Rhat
+are computed only for the time- and group-invariant parameters
+(\code{full_diagnostics = FALSE}). Setting this to \code{TRUE} computes ESS and Rhat
+values for all model parameters, which can take some time for complex models.}
 
 \item{object}{[\code{dynamitefit}]\cr The model fit object.}
 }
@@ -142,7 +155,7 @@ The \code{formula} method returns the model definition as a quoted expression.
 Information on the estimated dynamite model can be obtained via
 \code{print} including the following: The model formula, the data, the smallest
 effective sample sizes, largest Rhat and summary statistics of the
-time-invariant model parameters.
+time- and group-invariant model parameters.
 
 The \code{summary} method provides statistics of the posterior samples of the
 model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}} with

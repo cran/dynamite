@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -29,6 +29,6 @@ p$prior[p$type == "sigma_nu"] <- "normal(0, 1)" # change prior for sigma_nu
 p$prior[p$parameter == "sigma_y"] <- "student_t(3, 0, 2)" #prior for sigma_y
 p
 
-## ---- eval = FALSE------------------------------------------------------------
+## ----eval = FALSE-------------------------------------------------------------
 #  fit <- dynamite(f, data = gaussian_example, time = "time",  group = "id", priors = p)
 
