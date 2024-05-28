@@ -48,16 +48,17 @@ print.dynamitefit <- function(x, full_diagnostics = FALSE, ...) {
   )
   if (!is.null(x$stanfit)) {
     cat("\n")
-    hmc_diagnostics(x)
+    mcmc_algorithm <- x$stanfit@stan_args[[1L]]$algorithm %in% c("NUTS", "hmc")
+    if (mcmc_algorithm) {
+      hmc_diagnostics(x)
+    }
     draws <- suppressWarnings(as_draws(x))
-
     match_names <- grepl(
       pattern = "^(?!.*^nu|^omega|^lambda|.*\\[.*]).*",
       x = names(draws),
       perl = TRUE
     )
-
-    if (full_diagnostics) {
+    if (full_diagnostics && mcmc_algorithm) {
       # compute only the convergence measures for all variables
       sumr <- posterior::summarise_draws(
         draws,
@@ -66,24 +67,32 @@ print.dynamitefit <- function(x, full_diagnostics = FALSE, ...) {
     } else {
       sumr <- posterior::summarise_draws(draws[, match_names])
     }
-    min_ess <- which.min(sumr$ess_bulk)
-    cat("\nSmallest bulk-ESS: ", round(sumr$ess_bulk[min_ess]), " (",
-      sumr$variable[min_ess], ")",
-      sep = ""
-    )
-    min_ess <- which.min(sumr$ess_tail)
-    cat("\nSmallest tail-ESS: ", round(sumr$ess_tail[min_ess]), " (",
-      sumr$variable[min_ess], ")",
-      sep = ""
-    )
-    max_rhat <- which.max(sumr$rhat)
-    cat("\nLargest Rhat: ", round(sumr$rhat[max_rhat], 3), " (",
-      sumr$variable[max_rhat], ")",
-      sep = ""
-    )
-    cat("\n\nElapsed time (seconds):\n")
-    print(rstan::get_elapsed_time(x$stanfit))
-
+    if (mcmc_algorithm) {
+      min_ess <- which.min(sumr$ess_bulk)
+      cat("\nSmallest bulk-ESS: ", round(sumr$ess_bulk[min_ess]), " (",
+          sumr$variable[min_ess], ")",
+          sep = ""
+      )
+      min_ess <- which.min(sumr$ess_tail)
+      cat("\nSmallest tail-ESS: ", round(sumr$ess_tail[min_ess]), " (",
+          sumr$variable[min_ess], ")",
+          sep = ""
+      )
+      max_rhat <- which.max(sumr$rhat)
+      cat("\nLargest Rhat: ", round(sumr$rhat[max_rhat], 3), " (",
+          sumr$variable[max_rhat], ")",
+          sep = ""
+      )
+      runtimes <- rstan::get_elapsed_time(x$stanfit)
+      if (nrow(runtimes) > 2L) {
+        rs <- rowSums(runtimes)
+        cat("\n\nElapsed time (seconds) for fastest and slowest chains:\n")
+        print(runtimes[c(which.min(rs), which.max(rs)), ])
+      } else {
+        cat("\n\nElapsed time (seconds):\n")
+        print(runtimes)
+      }
+    }
     cat(
       "\nSummary statistics of the time- and group-invariant parameters:\n"
     )

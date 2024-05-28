@@ -143,7 +143,7 @@ test_that("cyclic dependency fails", {
     obs(x ~ z, family = "gaussian")
   expect_error(
     obs_lhs + obs_rhs,
-    "Cyclic dependency found in model formula\\."
+    "The model must be acyclic\\."
   )
 })
 
@@ -156,10 +156,10 @@ test_that("contemporaneous self dependency within a channel fails", {
     )
   )
   expect_error(
-    obs(c(y, x) ~ x | 1, family = "mvgaussian"),
+    obs(c(y, x) ~ y | 1, family = "mvgaussian"),
     paste0(
       "Contemporaneous self-dependency found in model formula:\n",
-      "x Variable `x` appears on both sides of the formula for \\(y, x\\)\\."
+      "x Variable `y` appears on both sides of the formula for \\(y, x\\)\\."
     )
   )
 })
@@ -397,6 +397,16 @@ test_that("multinomial family fails with multiple formula components", {
   )
 })
 
+test_that("cumulative channel fails without an intercept", {
+  expect_error(
+    obs(y ~ -1, family = "cumulative"),
+    paste0(
+      "A time-constant or a time-varying intercept must be specified ",
+      "for a cumulative channel\\."
+    )
+  )
+})
+
 # Formula specials errors -------------------------------------------------
 
 test_that("no intercept or predictors fails if no lfactor", {
@@ -464,6 +474,48 @@ test_that("multiple special components fail", {
   expect_error(
     obs(y ~ random(~1) + random(~x), family = "gaussian"),
     "Multiple `random\\(\\)` terms are not supported\\."
+  )
+})
+
+test_that("specials with multiple arguments fail", {
+  expect_error(
+    obs(y ~ fixed(~1, 2), family = "gaussian"),
+    "A `fixed\\(\\)` term must have a single formula argument\\."
+  )
+  expect_error(
+    obs(y ~ varying(~1, 2), family = "gaussian"),
+    "A `varying\\(\\)` term must have a single formula argument\\."
+  )
+  expect_error(
+    obs(y ~ random(~1, 2), family = "gaussian"),
+    "A `random\\(\\)` term must have a single formula argument\\."
+  )
+})
+
+test_that("nested specials fail", {
+  err <- paste0(
+    "A model formula must not contain nested ",
+    "`fixed\\(\\)`, `varying\\(\\)`, or `random\\(\\)` terms\\."
+  )
+  expect_error(
+    obs(y ~ random(~1 + random(~1)), family = "gaussian"),
+    err
+  )
+  expect_error(
+    obs(y ~ varying(~1 + varying(~1)), family = "gaussian"),
+    err
+  )
+  expect_error(
+    obs(y ~ fixed(~1 + fixed(~1)), family = "gaussian"),
+    err
+  )
+  expect_error(
+    obs(y ~ random(~1 + varying(~1)), family = "gaussian"),
+    err
+  )
+  expect_error(
+    obs(y ~ varying(~1 + random(~1)), family = "gaussian"),
+    err
   )
 })
 
@@ -921,15 +973,26 @@ test_that("output for missing argument fails", {
   methods <- c(
     "as.data.frame",
     "as_draws_df",
+    "confint",
+    "coef",
+    "fitted",
     "formula",
-    "print",
+    "hmc_diagnostics",
+    "lfo",
+    "loo",
     "mcmc_diagnostics",
     "ndraws",
-    "nobs"
+    "nobs",
+    "plot",
+    "predict",
+    "print",
+    "summary",
+    "update"
   )
   for (m in methods) {
+    call_fun <- paste0(m, ".dynamitefit")
     expect_error(
-      do.call(paste0(!!m, ".dynamitefit"), args = list()),
+      do.call(call_fun, args = list()),
       "Argument `.+` is missing"
     )
   }
@@ -939,20 +1002,41 @@ test_that("output for non dynamitefit objects fails", {
   methods <- c(
     "as.data.frame",
     "as_draws_df",
+    "confint",
+    "coef",
+    "fitted",
     "formula",
-    "print",
+    "hmc_diagnostics",
+    "lfo",
+    "loo",
     "mcmc_diagnostics",
     "ndraws",
-    "nobs"
+    "nobs",
+    "plot",
+    "predict",
+    "print",
+    "summary",
+    "update"
   )
-  args <- list(x = 1L)
+  object_arg_methods <- c(
+    "coef",
+    "confint",
+    "fitted",
+    "nobs",
+    "predict",
+    "summary",
+    "update"
+  )
   for (m in methods) {
-    if (identical(m, "nobs")) {
-      args <- list(object = 1L)
-    }
+    args <- ifelse_(
+      m %in% object_arg_methods,
+      list(object = 1L),
+      list(x = 1L)
+    )
+    call_fun <- paste0(m, ".dynamitefit")
     expect_error(
-      do.call(paste0(!!m, ".dynamitefit"), args = args),
-      "Argument `.+` must be a <dynamitefit> object"
+      do.call(call_fun, args = args),
+      "Argument `.+` must be a <dynamitefit> object\\."
     )
   }
 })
@@ -961,49 +1045,78 @@ test_that("output without Stan fit fails", {
   methods <- c(
     "as.data.frame",
     "as_draws_df",
+    "fitted",
+    "lfo",
+    "loo",
+    "predict",
     "ndraws"
   )
-  args <- list(x = gaussian_example_fit)
-  args$x$stanfit <- NULL
+  object_arg_methods <- c(
+    "fitted",
+    "predict"
+  )
+  fit <- gaussian_example_fit
+  fit$stanfit <- NULL
   for (m in methods) {
+    args <- ifelse_(
+      m %in% object_arg_methods,
+      list(object = fit),
+      list(x = fit)
+    )
     expect_error(
       do.call(paste0(!!m, ".dynamitefit"), args = args),
-      "No Stan model fit is available"
+      "No Stan model fit is available\\."
     )
   }
 })
 
-test_that("non dynamiteformula print fails", {
+test_that("invalid responses fail", {
   expect_error(
-    print.dynamiteformula(x = 1L),
-    "Argument `x` must be a <dynamiteformula> object\\."
+    as.data.table(gaussian_example_fit,responses = "resp"),
+    paste0(
+      "Argument `responses` contains invalid response variable names\\.\n",
+      "x Response variable \"resp\" is not recognized\\.\n",
+      "i The response variable of the model is \"y\"\\."
+    )
   )
 })
 
-test_that("Invalid responses fail", {
-  expect_error(
-    as.data.frame.dynamitefit(
-      gaussian_example_fit,
-      responses = "resp"
-    ),
-    "Model does not contain response variable `resp`\\."
-  )
-})
-
-test_that("Invalid confint level fails", {
-  expect_error(
-    confint.dynamitefit(gaussian_example_fit, level = -0.1),
-    "Argument `level` must be a single <numeric> value between 0 and 1\\."
-  )
-})
-
-test_that("Invalid parameter name fails", {
+test_that("invalid parameters fail", {
   expect_error(
     as.data.table(gaussian_example_fit, parameter = "test"),
     paste0(
-      "Parameter `test` not found in the model output\\.\n",
+      "Argument `parameters` contains invalid parameter names\\.\n",
+      "x Parameter \"test\" is not recognized\\.\n",
       "i Use `get_parameter_names\\(\\)` to check available parameters\\."
     )
+  )
+})
+
+test_that("invalid types fail", {
+  expect_error(
+    as.data.table(gaussian_example_fit, types = c("aa", "bb")),
+    paste0(
+      "Argument `types` contains invalid types\\.\n",
+      "x Types \"aa\" and \"bb\" are not recognized\\.\n",
+      "i Use `get_parameter_types\\(\\)` to check available types\\."
+    )
+  )
+})
+
+test_that("not found parameters fail", {
+  expect_error(
+    as.data.table(categorical_example_fit, types = "delta"),
+    paste0(
+      "No parameters of type `delta` were found for any of the response ",
+      "channels `x` and `y`\\."
+    )
+  )
+})
+
+test_that("invalid confint level fails", {
+  expect_error(
+    confint.dynamitefit(gaussian_example_fit, level = -0.1),
+    "Argument `level` must be a single <numeric> value between 0 and 1\\."
   )
 })
 
@@ -1289,7 +1402,7 @@ test_that("constrained prior for unconstrained parameter fails", {
       debug = list(no_compile = TRUE)
     ),
     paste0(
-      "Priors for parameters alpha, beta, and delta ",
+      "Priors for parameters \"alpha\", \"beta\", and \"delta\" ",
       "should have unconstrained support:\n",
       "x Found an unconstrained distribution ",
       "`gamma` for parameter `delta_y_x`\\."
@@ -1301,85 +1414,71 @@ test_that("constrained prior for unconstrained parameter fails", {
 
 test_that("plot errors when the input is not a dynamitefit object", {
   expect_error(
-    plot.dynamitefit(1, type = "beta"),
+    plot.dynamitefit(1, types = "beta"),
     "Argument `x` must be a <dynamitefit> object."
   )
 })
 
-test_that("plot errors when no type is defined", {
+# Model errors ------------------------------------------------------------
+
+test_that("multinomial model fails if stan version < 2.24", {
+  set.seed(1)
+  n_id <- 10L
+  n_time <- 5L
+  d <- data.frame(
+    y1 = sample(10, size = n_id * n_time, replace = TRUE),
+    y2 = sample(15, size = n_id * n_time, replace = TRUE),
+    y3 = sample(20, size = n_id * n_time, replace = TRUE),
+    z = rnorm(n_id * n_time),
+    time = seq_len(n_time),
+    id = rep(seq_len(n_id), each = n_time)
+  )
+  d$n <- d$y1 + d$y2 + d$y3
+  f <- obs(
+    c(y1, y2, y3) ~ z + lag(y1) + lag(y2) + lag(y3) + trials(n),
+    family = "multinomial"
+  )
   expect_error(
-    plot(categorical_example_fit),
+    mockthat::with_mock(
+      stan_version = function(...) "2.23",
+      dynamite(
+        dformula = f,
+        data = d,
+        time = "time",
+        group = "id",
+        backend = "rstan"
+      )
+    ),
     paste0(
-      "Both arguments `parameters` and `type` are missing, ",
-      "you should supply one of them."
+      "Multinomial family is not supported for this version of rstan\\.\n",
+      "i Please install a newer version of rstan\\."
     )
   )
 })
 
-test_that("plot errors when type is vector", {
-  expect_error(
-    plot(gaussian_example_fit, type = c("beta", "delta")),
-    "Argument `type` must be a single <character> string."
-  )
-})
+# Stan errors -------------------------------------------------------------
 
-test_that("plot errors when no variable is found ", {
+test_that("Stan backend argument conversion duplicates fail", {
+  dots <- list(iter = 1000, iter_sampling = 1000)
   expect_error(
-    plot(categorical_example_fit, type = "delta"),
+    check_stan_args(dots, verbose = FALSE, backend = "rstan"),
     paste0(
-      "No parameters of type `delta` found for any of the response ",
-      "channels `x` and `y`."
+      "Conflict in argument syntax conversion from cmdstanr to rstan\\.\n",
+      "x Argument `iter` has been multiply specified\\."
     )
   )
-})
-
-test_that("plot_deltas errors when the model does not contain deltas", {
-  expect_error(
-    plot_deltas(categorical_example_fit),
-    "The model does not contain varying coefficients delta."
+  dots <- list(
+    iter = 1000,
+    iter_sampling = 1000,
+    cores = 3,
+    parallel_chains = 4
   )
-})
-
-test_that("plot_nus errors when the model does not contain nus", {
   expect_error(
-    plot_nus(categorical_example_fit),
-    "The model does not contain random effects nu."
-  )
-})
-
-test_that("plot_betas errors when incorrect parameters are supplied", {
-  expect_error(
-    plot_betas(gaussian_example_fit, parameters = "delta_y_x"),
+    check_stan_args(dots, verbose = FALSE, backend = "cmdstanr"),
     paste0(
-      "Parameter `delta_y_x` not found or it is of wrong type:\n",
-      'i Use `get_parameter_names\\(\\)` with `types = "beta"` to check ',
-      'suitable parameter names\\.'
-    )
-  )
-})
-
-test_that("plot_deltas errors when incorrect parameters are supplied", {
-  expect_error(
-    plot_deltas(gaussian_example_fit, parameters = c("a", "delta_y_x")),
-    paste0(
-      "Parameter `a` not found or it is of wrong type:\n",
-      'i Use `get_parameter_names\\(\\)` with `types = "delta"` to check ',
-      'suitable parameter names\\.'
-    )
-  )
-})
-
-test_that("plot_nus errors when incorrect parameters are supplied", {
-  expect_error(
-    plot_nus(gaussian_example_fit, parameters = 5),
-    "Argument `parameters` must be a <character> vector\\."
-  )
-  expect_error(
-    plot_nus(gaussian_example_fit, parameters = "test"),
-    paste0(
-      "Parameter `test` not found or it is of wrong type:\n",
-      'i Use `get_parameter_names\\(\\)` with `types = "nu"` to check ',
-      'suitable parameter names\\.'
+      "Conflict in argument syntax conversion from rstan to cmdstanr\\.\n",
+      "x Arguments `iter_sampling` and `parallel_chains` have been multiply ",
+      "specified\\."
     )
   )
 })

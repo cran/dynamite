@@ -5,7 +5,7 @@
 \alias{loo}
 \title{Approximate Leave-One-Out (LOO) Cross-validation}
 \usage{
-\method{loo}{dynamitefit}(x, separate_channels = FALSE, ...)
+\method{loo}{dynamitefit}(x, separate_channels = FALSE, thin = 1L, ...)
 }
 \arguments{
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
@@ -14,6 +14,10 @@
 separately for each channel. This can be useful in diagnosing where the
 model fails. Default is \code{FALSE}, in which case the likelihoods of
 different channels are combined, i.e., all channels of are left out.}
+
+\item{thin}{[\code{integer(1)}]\cr Use only every \code{thin} posterior sample when
+computing LOO. This can be beneficial with when the model object contains
+large number of samples. Default is \code{1} meaning that all samples are used.}
 
 \item{...}{Ignored.}
 }
@@ -41,10 +45,11 @@ if (!identical(.Platform$OS.type, "windows")) {
 \references{
 Aki Vehtari, Andrew, Gelman, and Johah Gabry (2017).
 Practical Bayesian model evaluation using leave-one-out cross-validation and
-WAIC. Statistics and Computing. 27(5), 1413–1432.
+WAIC. Statistics and Computing. 27(5), 1413--1432.
 }
 \seealso{
 Model diagnostics
+\code{\link{hmc_diagnostics}()},
 \code{\link{lfo}()},
 \code{\link{mcmc_diagnostics}()}
 }

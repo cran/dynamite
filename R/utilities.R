@@ -66,7 +66,10 @@ cbind_datatable <- function(...) {
   )
 }
 
-#* Data Table rbindlist With Data Frame Output
+#' Data Table `rbindlist` With Data Frame Output
+#'
+#' @param x A `list` of `data.frame` objects.
+#' @noRd
 rbindlist_ <- function(x) {
   data.table::setDF(data.table::rbindlist(x))
 }
@@ -165,8 +168,16 @@ increment_formula <- function(formula, specials, x,
 #'
 #' @param x A `character` vector.
 #' @noRd
-cs <- function(x) {
-  paste0(x, collapse = ", ")
+cs <- function(...) {
+  paste0(c(...), collapse = ", ")
+}
+
+#' Create a Comma-separated Character String and Evaluate with glue
+#'
+#' @param ... `character` strings.
+#' @noRd
+glue_cs <- function(...) {
+  glue::glue(cs(c(...)), .envir = parent.frame())
 }
 
 #' Paste And Optionally Parse Character Strings Containing `glue` Syntax
@@ -402,6 +413,7 @@ log_mean_exp <- function(x, na.rm = FALSE) {
   )
   log_sum_exp(x, na.rm = na.rm) - log(n)
 }
+
 #' Number of Unique Values
 #'
 #' @inheritParams data.table::uniqueN

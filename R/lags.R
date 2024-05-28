@@ -60,12 +60,21 @@ lags <- function(k = 1L, type = c("fixed", "varying", "random")) {
 #' @param x \[`vector()`]\cr A vector of values.
 #' @param k \[`integer(1)`]\cr Number of positions to lag by.
 #' @noRd
-lag_ <- function(x, k = 1) {
+lag_ <- function(x, k = 1L) {
   lag_idx <- seq_len(length(x) - k)
   out <- x
   out[seq_len(k)] <- NA
   out[k + lag_idx] <- x[lag_idx]
   out
+}
+
+#' Create a Leading Version of a Vector
+#'
+#' @param x \[`vector()`]\cr A vector of values.
+#' @param k \[`integer(1)`]\cr Number of positions to lead by.
+#' @noRd
+lead_ <- function(x, k = 1L) {
+  rev(lag_(rev(x), k))
 }
 
 #' Adds Default Shift Values to Terms of the Form `lag(y)`
@@ -118,6 +127,28 @@ find_lags <- function(x) {
   }
 }
 
+#' Extract the Order of Lagged Variables from a Language Object
+#'
+#' @param x A `language` object
+#' @noRd
+find_lag_orders <- function(x) {
+  if (!is.recursive(x)) {
+    return(
+      data.frame(var = character(0L), order = integer(0L))
+    )
+  }
+  if (is.call(x)) {
+    if (identical(as.character(x[[1L]]), "lag")) {
+      if (length(x) == 2L) {
+        return(data.frame(var = deparse1(x[[2L]]), order = 1L))
+      } else {
+        return(data.frame(var = deparse1(x[[2L]]), order = x[[3L]]))
+      }
+    } else {
+      rbindlist_(lapply(x[-1L], find_lag_orders))
+    }
+  }
+}
 
 #' Extract Non-lag Variables from a Language Object
 #'
@@ -450,6 +481,8 @@ parse_global_lags <- function(dformula, lag_map, resp_stoch, channels_stoch) {
 #' @noRd
 parse_singleton_lags <- function(dformula, data, group_var,
                                  lag_map, valid_resp, verbose) {
+  # avoid NSE notes from R CMD check
+  group <- NULL
   n_lag <- nrow(lag_map)
   resp_all <- get_responses(dformula)
   channels <- vector(mode = "list", length = n_lag)
@@ -483,8 +516,11 @@ parse_singleton_lags <- function(dformula, data, group_var,
       if (y$is_resp && !is.null(y$past_val)) {
         if (identical(y$past_type, "past")) {
           past_out <- lag_(y$past_val, i)
-          # na_idx <- data[, .I[seq_len(i)], by = group_var, env = list(i = i)]$V1
-          na_idx <- data[, .I[seq_len(i)], by = group_var]$V1
+          na_idx <- data[,
+            .I[base::seq_len(i)],
+            by = group,
+            env = list(i = i, group = group_var)
+          ]$V1
           past_out[na_idx] <- NA
           spec <- list(
             past = past_out,

@@ -1,3 +1,42 @@
+# dynamite 1.5.2
+
+  * The main package vignette has been temporarily removed as it contained out-of-date information. Please see the arXiv preprint for up-to-date information instead: https://arxiv.org/abs/2302.01607
+
+# dynamite 1.5.1
+
+  * The `type` argument of `coef()` and `plot()` has been replaced by `types` accepting multiple types simultaneously, similar to `as.data.table()` and `as.data.frame()`.
+  * The functions `plot_betas()`, `plot_deltas()`, `plot_nus()`, `plot_lambdas()` and `plot_psis()` have been deprecated and are now provided via the default plot method by selecting the appropriate `types`.
+  * A new argument `plot_type` has been added to control what type of plot will be drawn by the `plot()` method. The default value `"default"` draws the posterior means and posterior intervals of all parameters. The old functionality of drawing posterior densities and traceplots is provided by the option `"trace"`.
+  * The `plot()` method has gained the argument `n_params` to limit the amount of parameters drawn at once (per parameter type).
+  * Both time-varying and time-invariant parameters can now be plotted simultaneously.
+  * Fixed an issue with `predict()` and `fitted()` for multinomial responses.
+  * Priors of the cutpoint parameters of the `cumulative` family are now customizable.
+  * Both `factor` and `ordered factor` responses are now supported for `categorical` and `cumulative` families. In addition, `ordered factor` columns of `data` are no longer converted to `factor` columns.
+  * Arguments that have the different names but the same functionality between `rstan` and `cmdstanr` can now be used interchangeably for either backend, such as `iter` and `iter_samples`.
+  * The latent factor component was reparametrized for additional robustness. User-visible changes are related to priors: Instead of prior on the standard deviations `sigma_lambda` and `tau_psi`, prior is now defined on `zeta`, the sum of these, as well as on `kappa`, which is the proportion of `zeta` attributable to `sigma_lambda`.
+
+# dynamite 1.5.0
+
+  * Estimation of dynamic multivariate panel models with multiple imputation is now available via the function `dynamice()` which uses the `mice` package.
+  * `predict` and `fitted` functions no longer permutes the posterior samples when all samples are used i.e. when `n_draws = NULL` (default). This also corrects the standard error estimates of `loo()`, which were not correct earlier due to the mixing of chains.
+  * Added an argument `thin` for `loo()`, `predict()` and `fitted()` methods.
+  * Print method now only prints the run time for the fastest and the slowest chain instead of all chains.
+  * A new exported function `hmc_diagnostics()` is now available.
+  * Added a vignette on `get_code()` and `get_data()` functions and how they can be used to modify the generated Stan code and perform variational Bayes inference.
+  * Contemporaneous dependencies are now allowed between different components of multivariate distributions, e.g., `obs(c(y, x) ~ x | 1, family = "mvgaussian")`.
+  * Ordered probit and logit regressions are now available via `obs(., family = "cumulative", link = "probit")` and `obs(., family = "cumulative", link = "logit")`, respectively.
+
+# dynamite 1.4.11
+
+  * The package now depends on `data.table` version 1.15.0 or higher and the `ggforce` package.
+  * Added a `plot` method for `dynamiteformula` objects. This method draws a directed acyclic graph (DAG) of the model structure as a snapshot in time with timepoints from the past and the future equal to the highest-order lag dependency in the model as a `ggplot` object. Alternatively, setting the argument `tikz = TRUE` returns the DAG as a `character` string in TikZ format. See the documentation for more details.
+
+# dynamite 1.4.10
+
+  * The formula interface now prohibits additional invalid `fixed()`, `varying()`, and `random()` definitions in `obs()`.
+  * Fixed an error in Stan code generation if an offset term was included in the model formula.
+  * Fixed an issue when using `character` type `group` variables.
+
 # dynamite 1.4.9
 
   * Added option to input a custom model code for `dynamite` which can be used to tweak some aspects of the model (no checks on the compatibility with the post processing are made).
@@ -13,8 +52,8 @@
 
 # dynamite 1.4.7
 
-  * Added a note on priors vignette regarding default priors for $\tau$ parameters.
-  * Fixed `mcmc_diagnostics` function so that HMC diagnostics are checked also for models run with the `cmdstanr` backend.
+  * Added a note on priors vignette regarding default priors for `tau` parameters.
+  * Fixed `mcmc_diagnostics()` function so that HMC diagnostics are checked also for models run with the `cmdstanr` backend.
   
 # dynamite 1.4.6
 

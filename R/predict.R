@@ -65,7 +65,12 @@
 #'   non-fixed time point is counted from the first time point globally.
 #'   If there are no groups, then the options are equivalent.
 #' @param n_draws \[`integer(1)`]\cr Number of posterior samples to use,
-#'   default is `NULL` which uses all samples.
+#'   default is `NULL` which uses all samples without permuting (with chains
+#'   concatenated). If `n_draws`is smaller than `ndraws(object)`, a random
+#'   subset of `n_draws` posterior samples are used.
+#' @param thin \[`integer(1)`]\cr Use only every `thin` posterior sample.
+#'   This can be beneficial with when the model object contains
+#'   large number of samples. Default is `1` meaning that all samples are used.
 #' @param expand \[`logical(1)`]\cr If `TRUE` (the default), the output
 #'   is a single `data.frame` containing the original `newdata` and the
 #'   predicted values. Otherwise, a `list` is returned with two components,
@@ -156,8 +161,16 @@ predict.dynamitefit <- function(object, newdata = NULL,
                                 new_levels = c(
                                   "none", "bootstrap", "gaussian", "original"
                                 ),
-                                global_fixed = FALSE, n_draws = NULL,
+                                global_fixed = FALSE, n_draws = NULL, thin = 1,
                                 expand = TRUE, df = TRUE, ...) {
+  stopifnot_(
+    !missing(object),
+    "Argument {.arg object} is missing."
+  )
+  stopifnot_(
+    is.dynamitefit(object),
+    "Argument {.arg object} must be a {.cls dynamitefit} object."
+  )
   stopifnot_(
     !is.null(object$stanfit),
     "No Stan model fit is available."
@@ -201,6 +214,20 @@ predict.dynamitefit <- function(object, newdata = NULL,
     checkmate::test_flag(x = df),
     "Argument {.arg df} must be a single {.cls logical} value."
   )
+  stopifnot_(
+    checkmate::test_int(x = thin, lower = 1L, upper = ndraws(object)),
+    "Argument {.arg thin} must be a single positive {.cls integer}."
+  )
+  if (thin > 1L) {
+    idx_draws <- seq.int(1L, ndraws(object), by = thin)
+  } else {
+    n_draws <- check_ndraws(n_draws, ndraws(object))
+    idx_draws <- ifelse_(
+      identical(n_draws, ndraws(object)),
+      seq_len(n_draws),
+      object$permutation[seq_len(n_draws)]
+    )
+  }
   initialize_predict(
     object,
     newdata,
@@ -210,7 +237,7 @@ predict.dynamitefit <- function(object, newdata = NULL,
     impute,
     new_levels,
     global_fixed,
-    n_draws,
+    idx_draws,
     expand,
     df
   )
@@ -223,8 +250,8 @@ predict.dynamitefit <- function(object, newdata = NULL,
 #'   `"loglik"`.
 #' @noRd
 initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
-                               new_levels, global_fixed, n_draws, expand, df) {
-  n_draws <- check_ndraws(n_draws, ndraws(object))
+                               new_levels, global_fixed, idx_draws, expand, df) {
+  n_draws <- length(idx_draws)
   newdata_null <- is.null(newdata)
   newdata <- check_newdata(object, newdata)
   fixed <- as.integer(attr(object$dformulas$all, "max_lag"))
@@ -277,7 +304,6 @@ initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
     resp_stoch = resp_stoch,
     eval_type = eval_type,
     group_var = group_var,
-    time_var = time_var,
     fixed = fixed,
     global_fixed = global_fixed
   )
@@ -315,6 +341,7 @@ initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
     )
   )
   simulated <- newdata[, .SD, .SDcols = c(resp_draw, group_var, time_var)]
+  obs_names <- setdiff(names(newdata), resp_draw)
   mode <- "full"
   if (length(funs) > 0L) {
     mode <- "summary"
@@ -328,12 +355,12 @@ initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
     object = object,
     simulated = simulated,
     storage = simulated,
-    observed = newdata[, .SD, .SDcols = setdiff(names(newdata), resp_draw)],
+    observed = newdata[, .SD, .SDcols = obs_names],
     mode = mode,
     type = type,
     eval_type = eval_type,
     new_levels = new_levels,
-    n_draws = n_draws,
+    idx_draws = idx_draws,
     fixed = fixed,
     funs = funs,
     group_var = group_var,
@@ -352,8 +379,9 @@ initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
 #' @param mode Simulation mode, either `"full"` or `"summary"`.
 #' @noRd
 predict_ <- function(object, simulated, storage, observed,
-                     mode, type, eval_type, new_levels, n_draws, fixed, funs,
+                     mode, type, eval_type, new_levels, idx_draws, fixed, funs,
                      group_var, time_var, expand, df) {
+  n_draws <- length(idx_draws)
   formulas_stoch <- object$dformulas$stoch
   resp <- get_responses(object$dformulas$all)
   resp_stoch <- get_responses(object$dformulas$stoch)
@@ -369,6 +397,8 @@ predict_ <- function(object, simulated, storage, observed,
     attr(object$dformulas$lag_det, "rank_order")
   )
   ro_ls <- seq_along(lhs_ls)
+  resp_store <- grep("_store", names(observed), value = TRUE)
+  obs_merge <- setdiff(names(observed), c(names(simulated), resp_store))
   n_group <- n_unique(observed[[group_var]])
   time <- observed[[time_var]]
   draw_time <- rep(time, each = n_draws)
@@ -384,8 +414,14 @@ predict_ <- function(object, simulated, storage, observed,
   )
   if (identical(mode, "full")) {
     n_new <- nrow(simulated)
-    simulated <- simulated[rep(seq_len(n_new), each = n_draws)]
-    simulated[, (".draw") := rep(seq.int(1L, n_draws), n_new)]
+    simulated <- simulated[
+      rep(seq_len(n_new), each = n_draws),
+      env = list(n_new = n_new, n_draws = n_draws)
+    ]
+    simulated[,
+      (".draw") := rep(seq.int(1L, n_draws), n_new),
+      env = list(n_new = n_new, n_draws = n_draws)
+    ]
     idx <- which(draw_time == u_time[1L]) + (fixed - 1L) * n_draws
     n_sim <- n_draws
   } else {
@@ -394,9 +430,8 @@ predict_ <- function(object, simulated, storage, observed,
     idx_prev <- seq.int(1L, n_sim)
     simulated <- storage[1L, ]
     simulated[, (names(simulated)) := .SD[NA]]
-    # simulated <- simulated[rep(1L, 2L * n_sim), , env = list(n_sim = n_sim)]
-    simulated <- simulated[rep(1L, 2L * n_sim)]
-      data.table::set(
+    simulated <- simulated[rep(1L, 2L * n_sim), env = list(n_sim = n_sim)]
+    data.table::set(
       x = simulated,
       j = ".draw",
       value = rep(seq.int(1L, n_draws), 2L * n_group)
@@ -409,17 +444,15 @@ predict_ <- function(object, simulated, storage, observed,
     )
     summaries <- storage[1L, ]
     for (f in funs) {
-      # target <- f$fun(storage[[f$target]][1L])
-      # summaries[, (f$name) := target, env = list(target = target)]
-      summaries[, (f$name) := f$fun(storage[[f$target]][1L])]
+      target <- f$fun(storage[[f$target]][1L])
+      summaries[, (f$name) := target, env = list(target = target)]
     }
     summaries[, (names(storage)) := NULL]
     summaries[, (names(summaries)) := .SD[NA]]
-    # summaries <- summaries[
-    #  rep(1L, n_time * n_draws),
-    #  env = list(n_time = n_time, n_draws = n_draws)
-    # ]
-    summaries <- summaries[rep(1L, n_time * n_draws)]
+    summaries <- summaries[
+      rep(1L, n_time * n_draws),
+      env = list(n_time = n_time, n_draws = n_draws)
+    ]
     data.table::set(
       x = summaries,
       j = time_var,
@@ -432,13 +465,20 @@ predict_ <- function(object, simulated, storage, observed,
     )
     idx_summ <- which(summaries[[time_var]] == u_time[1L]) + (fixed - 1L)
   }
+  data.table::setcolorder(
+    simulated,
+    neworder = c(
+      group_var, time_var, ".draw",
+      setdiff(names(simulated), c(group_var, time_var, ".draw"))
+    )
+  )
   eval_envs <- prepare_eval_envs(
     object,
     simulated,
     observed,
     type,
     eval_type,
-    n_draws,
+    idx_draws,
     new_levels,
     group_var
   )
@@ -458,14 +498,17 @@ predict_ <- function(object, simulated, storage, observed,
     for (j in model_topology) {
       cg_idx <- which(channel_groups == j)
       k <- cg_idx[1L]
-      sub <- cbind_datatable(simulated[idx, ], observed[idx_obs, ])
+      sub <- cbind_datatable(
+        simulated[idx, ],
+        observed[idx_obs, .SD, .SDcols = obs_merge]
+      )
       if (is_deterministic(families[[k]])) {
         assign_deterministic_predict(
           simulated,
           sub,
           idx,
           resp[k],
-          formula_rhs(object$dformulas$all[[k]]$formula)
+          get_quoted(object$dformulas$all[k])
         )
       } else {
         specials <- evaluate_specials(
@@ -523,8 +566,6 @@ predict_ <- function(object, simulated, storage, observed,
   if (identical(mode, "full")) {
     lhs_lag <- c(lhs_ld, lhs_ls)
     if (length(lhs_lag) > 0L) {
-    # This if might not be needed in next version of data.table
-    #simulated[, c(lhs_ld, lhs_ls) := NULL]
       simulated[, c(lhs_lag) := NULL]
     }
     data.table::setkeyv(simulated, cols = c(".draw", group_var, time_var))
@@ -564,7 +605,7 @@ assign_from_storage <- function(storage, simulated, idx, idx_obs) {
   }
 }
 
-#' Compute And Assing Summary Predictions
+#' Compute And Assign Summary Predictions
 #'
 #' @inheritParams predict_summary
 #' @inheritParams predict_full
@@ -572,22 +613,19 @@ assign_from_storage <- function(storage, simulated, idx, idx_obs) {
 #' @param idx_summ Indices of the summarized predictions to be assigned.
 #' @noRd
 assign_summaries <- function(summaries, simulated, funs, idx, idx_summ) {
+  # avoid NSE notes from R CMD check
+  fun <- NULL
   for (f in funs) {
     data.table::set(
       x = summaries,
       i = idx_summ,
       j = f$name,
-      # value = simulated[
-      #  idx, lapply(.SD, fun),
-      #  by = ".draw",
-      #  .SDcols = target,
-      #  env = list(fun = fun, target = target)
-      # ][[target]]
       value = simulated[
         idx,
-        lapply(.SD, f$fun),
+        lapply(.SD, fun),
         by = ".draw",
-        .SDcols = f$target
+        .SDcols = f$target,
+        env = list(fun = f$fun, idx = idx)
       ][[f$target]]
     )
   }

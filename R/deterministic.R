@@ -13,7 +13,6 @@
 initialize_deterministic <- function(data, dd, dlp, dld, dls) {
   resp_pred <- attr(dlp, "original_response")
   for (i in seq_along(dlp)) {
-    # data[, (dlp[[i]]$response) := v, env = list(v = data[[resp_pred[i]]])]
     data.table::set(
       x = data,
       j = dlp[[i]]$response,
@@ -27,17 +26,14 @@ initialize_deterministic <- function(data, dd, dlp, dld, dls) {
       rhs_ls[i] %in% names(data),
       "Can't find variable{?s} {.var {rhs_ls[i]}} in {.arg data}."
     )
-    # v <- data[[rhs_ls[i]]]
-    # data[, (dls[[i]]$response) := v, env = list(v = v)]
     data.table::set(x = data, j = dls[[i]]$response, value = data[[rhs_ls[i]]])
     data[, (dls[[i]]$response) := NA]
   }
   for (i in seq_along(dd)) {
     as_fun <- paste0("as.", dd[[i]]$specials$resp_type)
     past <- do.call(as_fun, args = list(0))
-    # data[, dd[[i]]$response := past, env = list(past = past)]
     data.table::set(x = data, j = dd[[i]]$response, value = past)
-    data[, dd[[i]]$response := NA]
+    data[, (dd[[i]]$response) := NA]
   }
   rhs_ld <- get_rhs(dld)
   ro_ld <- attr(dld, "rank_order")
@@ -46,19 +42,14 @@ initialize_deterministic <- function(data, dd, dlp, dld, dls) {
     if (init[k]) {
       as_fun <- paste0("as.", dld[[k]]$specials$resp_type)
       past <- do.call(as_fun, args = list(dld[[k]]$specials$past[1L]))
-      # data[, (dld[[k]]$response) := past, env = list(past = past)]
       data.table::set(x = data, j = dld[[k]]$response, value = past)
-      # data[, (dld[[k]]$response) := past]
       data[, (dld[[k]]$response) := NA]
     } else {
-      # v <- data[[rhs_ld[k]]]
-      # data[, (dld[[k]]$response) := v, env = list(v = v)]
       data.table::set(
         x = data,
         j = dld[[k]]$response,
         value = data[[rhs_ld[k]]]
       )
-      # data[, (dld[[k]]$response) := data[[rhs_ld[k]]]]
       data[, (dld[[k]]$response) := NA]
     }
   }
@@ -84,6 +75,8 @@ initialize_deterministic <- function(data, dd, dlp, dld, dls) {
 #' @noRd
 assign_initial_values <- function(data, idx, dd, dlp, dld, dls,
                                   fixed, group_var) {
+  # avoid NSE notes from R CMD check
+  group <- NULL
   ro_lp <- ifelse_(
     is.null(attr(dlp, "rank_order")),
     integer(0L),
@@ -107,9 +100,8 @@ assign_initial_values <- function(data, idx, dd, dlp, dld, dls,
     data[,
       (dlp[[i]]$response) := lapply(.SD, lag_, k),
       .SDcols = resp_lp[i],
-      by = group_var
-      # by = group_var,
-      # env = list(k = k, lag_ = lag_)
+      by = group,
+      env = list(k = k, lag_ = lag_, group = group_var)
     ]
   }
   init <- which(has_past(dld))
@@ -137,16 +129,8 @@ assign_initial_values <- function(data, idx, dd, dlp, dld, dls,
 #'   the channels.
 #' @noRd
 assign_deterministic <- function(data, idx, cl) {
-  # Remove this if when env is available in CRAN data.table
-  # if (!is.null(cl)) {
-  #  data[idx, cl, env = list(cl = cl)]
-  # }
-  for (.deterministic_channel_definition_ in cl) {
-    data[
-      idx,
-      (.deterministic_channel_definition_$name) :=
-        eval(.deterministic_channel_definition_$expr)
-    ]
+  if (!is.null(cl)) {
+    data[idx, cl, env = list(cl = cl)]
   }
 }
 
@@ -155,25 +139,18 @@ assign_deterministic <- function(data, idx, cl) {
 #' @param simulated \[`data.table`]\cr Data table to assign the values into.
 #' @param sub \[`data.table`]\cr Subset of data to evaluate the channel.
 #' @param idx \[`integer()`]\cr A vector of indices to assign values into.
-#' @param idx_obs \[`integer()`]\cr A vector of indices of predictor values.
-#' @param .deterministic_channel_name_ \[`character(1)`]\cr
+#' @param resp \[`character(1)`]\cr
 #'   Name of the response variable of the channel.
-#' @param .deterministic_channel_definition_ \[`language`]\cr
-#'   A quoted expression defining the channel.
+#' @param cl \[`language`]\cr A `list` of a quoted expression defining
+#'   the channel.
 #' @noRd
-assign_deterministic_predict <- function(simulated, sub, idx,
-                                         .deterministic_channel_name_,
-                                         .deterministic_channel_definition_) {
-
-  sub[,
-    (.deterministic_channel_name_) :=
-      eval(.deterministic_channel_definition_)
-  ]
+assign_deterministic_predict <- function(simulated, sub, idx, resp, cl) {
+  sub[, cl, env = list(cl = cl)]
   data.table::set(
     x = simulated,
     i = idx,
-    j = .deterministic_channel_name_,
-    value = sub[[.deterministic_channel_name_]]
+    j = resp,
+    value = sub[[resp]]
   )
 }
 

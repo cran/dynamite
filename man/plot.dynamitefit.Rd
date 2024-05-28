@@ -2,34 +2,91 @@
 % Please edit documentation in R/plot.R
 \name{plot.dynamitefit}
 \alias{plot.dynamitefit}
-\title{Traceplots and Density Plots for a \code{dynamitefit} Object}
+\title{Plots for \code{dynamitefit} Objects}
 \usage{
-\method{plot}{dynamitefit}(x, parameters = NULL, type = NULL, responses = NULL, ...)
+\method{plot}{dynamitefit}(
+  x,
+  plot_type = c("default", "trace", "dag"),
+  types = NULL,
+  parameters = NULL,
+  responses = NULL,
+  groups = NULL,
+  times = NULL,
+  level = 0.05,
+  alpha = 0.5,
+  facet = TRUE,
+  scales = c("fixed", "free"),
+  n_params = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
 
-\item{parameters}{[\code{charecter()}]\ Parameter name(s) for which the plots
-should be drawn. Possible options can be found with the function
-\code{\link[=get_parameter_names]{get_parameter_names()}}. The default is all parameters ofa
-specific type for all responses, which can lead to too crowded a plot.}
+\item{plot_type}{[\code{character(1)}]\cr What type of plot to draw? The default
+is \code{"default"} which draws posterior means and intervals of the parameters
+selected by \code{types} or \code{parameters}. If both \code{"types"} and
+\code{parameters} are \code{NULL}, all parameters are drawn up to the maximum
+specified by \code{n_params}. Option \code{"trace"} instead draws posterior
+densities and traceplots of the parameters. Option \code{"dag"} instead plots
+the directed acyclic graph of the model formula, see
+\code{\link[=plot.dynamiteformula]{plot.dynamiteformula()}} for the arguments available for this
+option.}
 
-\item{type}{[\code{character(1)}]\cr Type of the parameter for which the plots
+\item{types}{[\code{character(1)}]\cr Types of the parameter for which the plots
 should be drawn. Possible options can be found with the function
 \code{\link[=get_parameter_types]{get_parameter_types()}}. Ignored if the argument \code{parameters}
 is supplied.}
+
+\item{parameters}{[\code{charecter()}]\cr Parameter name(s) for which the plots
+should be drawn. Possible options can be found with the function
+\code{\link[=get_parameter_names]{get_parameter_names()}}. The default is all parameters,
+limited by \code{n_params}.}
 
 \item{responses}{[\code{character()}]\cr Response(s) for which the plots should
 be drawn. Possible options are \code{unique(x$priors$response)}. Default is
 all responses. Ignored if the argument \code{parameters} is supplied.}
 
-\item{...}{Not used..}
+\item{groups}{[\code{character(1)}]\cr Group name(s) for which the plots
+should be drawn for group-specific parameters.}
+
+\item{times}{[\code{double()}]\cr Time point(s) for which the plots should be
+drawn for time-varying parameters. By default, all time points are
+included, up to the maximum number of parameters specified by \code{n_params}
+starting from the first non-fixed time point.}
+
+\item{level}{[\code{numeric(1)}]\cr Level for posterior intervals.
+Default is 0.05, leading to 90\% intervals.}
+
+\item{alpha}{[\code{numeric(1)}]\cr Opacity level for \code{geom_ribbon}.
+Default is 0.5.}
+
+\item{facet}{[\code{logical(1)}]\cr Should the time-invariant parameters be
+plotted separately (\code{TRUE}) or in a single plot (\code{FALSE})?}
+
+\item{scales}{[\code{character(1)}]\cr Should y-axis of the panels be \code{"fixed"}
+(the default) or \code{"free"}? See \code{\link[ggplot2:facet_wrap]{ggplot2::facet_wrap()}}.}
+
+\item{n_params}{[\code{integer()}]\cr A single value or a vector of length 2
+specifying the maximum number of parameters to plot. If a single value
+is provided, the same limit is used for all parameters. If a vector is
+supplied, the first element defines the maximum number of time-invariant
+parameters to plot and the second the maximum number of time-varying
+parameters to plot. The defaults values are 20 for time-invariant
+parameters and 3 for time-varying parameters. The default value is 5
+for \code{plot_type == "trace"}.}
+
+\item{...}{Arguments passed to \code{\link[=plot.dynamiteformula]{plot.dynamiteformula()}} when
+using \code{plot_type = "dag"}.}
 }
 \value{
 A \code{ggplot} object.
 }
 \description{
-Produces the traceplots and the density plots of the model parameters.
+Produces the traceplots and the density plots of the model parameters. Can
+also be used to plot the time-varying and time-invariant parameters of the
+model along with their posterior intervals. See the \code{plot_type} argument
+for details on available plots.
 }
 \examples{
 data.table::setDTthreads(1) # For CRAN
@@ -38,10 +95,6 @@ plot(gaussian_example_fit, type = "beta")
 }
 \seealso{
 Drawing plots
-\code{\link{plot_betas}()},
-\code{\link{plot_deltas}()},
-\code{\link{plot_lambdas}()},
-\code{\link{plot_nus}()},
-\code{\link{plot_psis}()}
+\code{\link{plot.dynamiteformula}()}
 }
 \concept{plotting}

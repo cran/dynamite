@@ -34,6 +34,19 @@
 #'
 update.dynamitefit <- function(object, dformula = NULL, data = NULL,
                                priors = NULL, recompile = NULL, ...) {
+  stopifnot_(
+    !missing(object),
+    "Argument {.arg object} is missing."
+  )
+  stopifnot_(
+    is.dynamitefit(object),
+    "Argument {.arg object} must be a {.cls dynamitefit} object."
+  )
+  stopifnot_(
+    is.null(object$imputed),
+    "The {.fun update} method is not supported for models estimated using
+     multiple imputation."
+  )
   call <- object$call
   if (!is.null(dformula)) {
     call$dformula <- dformula

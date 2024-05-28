@@ -45,13 +45,16 @@ test_that("nonidentifiable lfactor specification gives warning", {
           correlated = TRUE,
           noncentered_psi = TRUE
         ) + splines(30),
-      data = d, time = "time", group = "id", debug = list(no_compile = TRUE)),
+      data = d,
+      time = "time",
+      group = "id",
+      debug = list(no_compile = TRUE)),
     NA
   )
   expect_warning(
     dynamite(
       obs(y1 ~ x, family = "poisson") +
-        obs(y2 ~ x + random(~1), family = "gaussian") +
+        obs(y2 ~ -1+x + varying(~1) + random(~1), family = "gaussian") +
         lfactor(
           responses = c("y1", "y2"),
           nonzero_lambda = TRUE,
@@ -64,63 +67,13 @@ test_that("nonidentifiable lfactor specification gives warning", {
       group = "id",
       debug = list(no_compile = TRUE)
     ),
-    paste0("The common time-invariant intercept term of channel `y2` was ",
-      "removed as channel predictors contain random intercept and latent ",
-      "factor specified with `nonzero_lambda` as TRUE\\.")
+    paste0(
+      "The common time-varying intercept term of channel `y2` was ",
+      "removed as channel predictors contain latent factor specified with ",
+      "`nonzero_lambda` as TRUE\\."
+    )
   )
 })
-
-# WIP
-# test_that("latent factors work", {
-#   skip_if_not(run_extended_tests)
-#
-#   fit1 <- dynamite(
-#     obs(y1 ~ x, family = "poisson") + obs(y2 ~ x, family = "gaussian") +
-#       lfactor(nonzero_lambda = c(TRUE, FALSE),
-#         noncentered_psi = TRUE) +
-#       splines(10),
-#     data = d, time = "time", group = "id",
-#     chains = 1, refresh = 0, seed = 1
-#   )
-#
-#   fit2 <- dynamite(
-#     obs(y1 ~ x, family = "poisson") + obs(y2 ~ x, family = "gaussian") +
-#       lfactor(
-#         nonzero_lambda = c(TRUE, FALSE),
-#         noncentered_psi = FALSE) +
-#       splines(10),
-#     data = d, time = "time", group = "id",
-#     chains = 1, refresh = 0, seed = 1
-#   )
-#
-#   fit3 <- dynamite(
-#     obs(y1 ~ x, family = "poisson") + obs(y2 ~ x, family = "gaussian") +
-#       lfactor(
-#         nonzero_lambda = c(TRUE, FALSE),
-#         correlated = FALSE,
-#         noncentered_psi = FALSE) +
-#       splines(10),
-#     data = d, time = "time", group = "id",
-#     chains = 1, refresh = 0, seed = 1
-#   )
-#   as_draws(fit3,types=c("alpha","beta","sigma_lambda","tau_psi")) |> posterior:::summarise_draws()
-#   expect_equal(
-#     summary(fit1, types = c("alpha", "beta", "sigma"))$mean,
-#     c(1, 1.05, 1, 0.53),
-#     tolerance = 0.1
-#   )
-#
-#   expect_equal(
-#     summary(fit1)$mean,
-#     summary(fit2)$mean,
-#     tolerance = 0.1
-#   )
-#   expect_equal(
-#     summary(fit1, types = c("alpha", "beta", "sigma"))$mean,
-#     summary(fit3, types = c("alpha", "beta", "sigma"))$mean,
-#     tolerance = 0.1
-#   )
-# })
 
 # Tests involving `latent_factor_example` and `latent_factor_example_fit` -----
 
@@ -155,7 +108,7 @@ latent_factor_example_fit <- onlyif(
     data = latent_factor_example,
     group = "id",
     time = "time",
-    iter = 2000,
+    iter = 4000,
     warmup = 1000,
     thin = 1,
     chains = 2,
@@ -167,14 +120,15 @@ test_that("latent factor related parameters can be got", {
   skip_if_not(run_extended_tests)
   expect_equal(
     get_parameter_types(latent_factor_example_fit),
-    c("alpha", "sigma", "lambda", "sigma_lambda", "psi", "tau_psi", "omega_psi")
+    c("alpha", "lambda", "omega_psi", "psi", "sigma", "sigma_lambda",
+      "tau_psi", "kappa", "zeta")
   )
 })
 
 test_that("lambdas can be plotted", {
   skip_if_not(run_extended_tests)
   expect_error(
-    plot_lambdas(latent_factor_example_fit),
+    plot(latent_factor_example_fit, types = "lambda", n_params = 10),
     NA
   )
 })
@@ -182,12 +136,12 @@ test_that("lambdas can be plotted", {
 test_that("psis can be plotted", {
   skip_if_not(run_extended_tests)
   expect_error(
-    plot_psis(latent_factor_example_fit),
+    plot(latent_factor_example_fit, types = "psi"),
     NA
   )
 })
 
-test_that("new group levels can't be included if model has latent factor", {
+test_that("new group levels can't be included if model has a latent factor", {
   skip_if_not(run_extended_tests)
   nd <- latent_factor_example
   nd$id[nd$id == 1] <- 100
@@ -203,5 +157,16 @@ test_that("new group levels can't be included if model has latent factor", {
       "factors do not support new levels because of identifiability",
       "constraints\\."
     )
+  )
+})
+
+test_that("predict works with a latent factor", {
+  skip_if_not(run_extended_tests)
+  expect_error(
+    pred <- predict(latent_factor_example_fit, n_draws = 5),
+    NA
+  )
+  expect_true(
+    all(is.finite(pred$y_new))
   )
 })

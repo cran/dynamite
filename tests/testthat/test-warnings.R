@@ -21,25 +21,6 @@ test_that("factor time conversion warns", {
   )
 })
 
-test_that("ordered factor conversion to factor warns", {
-  test_data <- data.frame(
-    y = factor(c(1, 2, 2), ordered = TRUE),
-    x = c(1, 1, 2), z = c(1, 2, 3)
-  )
-  expect_warning(
-    dynamite(
-      dformula = obs(y ~ x, family = "categorical"),
-      data = test_data, group = "x", time = "z",
-      debug = list(no_compile = TRUE)
-    ),
-    paste0(
-      "Response variable `y` is of class <ordered factor> ",
-      "whose channel is categorical:\n",
-      "i `y` will be converted to an unordered factor\\."
-    )
-  )
-})
-
 test_that("perfect collinearity warns", {
   f1 <- obs(y ~ -1 + x + z, family = "gaussian")
   f2 <- obs(y ~ z, family = "gaussian")
@@ -124,7 +105,7 @@ test_that("multiple intercept warns", {
   expect_warning(
     obs(y ~ 1 + varying(~1), family = "gaussian"),
     paste0(
-      "Both time-independent and time-varying intercept specified:\n",
+      "Both time-constant and time-varying intercept specified:\n",
       "i Defaulting to time-varying intercept\\."
     )
   )
@@ -154,25 +135,6 @@ test_that("time-varying intercept is removed", {
       "The common time-varying intercept term of channel `y` was removed ",
       "as channel predictors contain latent factor specified with ",
       "`nonzero_lambda` as TRUE\\."
-    )
-  )
-})
-
-test_that("time-varying intercept is removed", {
-  expect_warning(
-    dynamite(
-      obs(y ~ x + random(~1), family = "gaussian") +
-        lfactor() +
-        splines(4),
-      test_data,
-      "time",
-      "id",
-      debug = debug
-    ),
-    paste0(
-      "The common time-invariant intercept term of channel `y` was ",
-      "removed as channel predictors contain random intercept and latent ",
-      "factor specified with `nonzero_lambda` as TRUE\\."
     )
   )
 })
@@ -289,5 +251,60 @@ test_that("windows and old rstan warns on attach", {
       "Please update your `rstan` and `StanHeaders` installations before ",
       "using `dynamite` with the `rstan` backend by running:"
     )
+  )
+})
+
+# Plot warnings -----------------------------------------------------------
+
+test_that("too many parameters warns in plot", {
+  expect_warning(
+    plot(gaussian_example_fit, types = "nu"),
+    paste0(
+      "Number of parameters to be plotted \\(50\\) exceeds the maximum ",
+      "number of parameters \\(20\\) for parameters of type `nu`\\. ",
+      "The remaining parameters of this type will not be plotted\\.\n",
+      "i Please increase `n_params` to plot more parameters\\."
+    )
+  )
+  expect_warning(
+    plot(gaussian_example_fit, types = "nu", plot_type = "trace"),
+    paste0(
+      "Number of parameters to be plotted \\(50\\) exceeds the maximum ",
+      "number of parameters \\(5\\)\\. ",
+      "The remaining parameters will not be plotted\\.\n",
+      "i Please increase `n_params` to plot more parameters\\."
+    )
+  )
+})
+
+# Deprecated --------------------------------------------------------------
+
+test_that("deprecated functions warn", {
+  expect_warning(
+    plot_betas(gaussian_example_fit),
+    "'plot_betas' is deprecated"
+  )
+  expect_warning(
+    plot_deltas(gaussian_example_fit),
+    "'plot_deltas' is deprecated"
+  )
+  expect_warning(
+    plot_nus(gaussian_example_fit, n_params = 10),
+    "'plot_nus' is deprecated"
+  )
+  expect_warning(
+    try(plot_lambdas(gaussian_example_fit), silent = TRUE),
+    "'plot_lambdas' is deprecated"
+  )
+  expect_warning(
+    try(plot_psis(gaussian_example_fit), silent = TRUE),
+    "'plot_psis' is deprecated"
+  )
+})
+
+test_that("deprecated cmdstanr arguments warn", {
+  dots <- list(seed = 0, cores = 4, num_sampling = 1000)
+  expect_warning(
+    check_stan_args(dots, verbose = TRUE, backend = "cmdstanr"),
   )
 })

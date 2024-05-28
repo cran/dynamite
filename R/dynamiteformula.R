@@ -2,7 +2,7 @@
 #'
 #' Defines a new observational or a new auxiliary channel for the model using
 #' standard \R formula syntax. Formulas of individual response variables can be
-#' joined together via `+`. See 'Details' and the package vignette for more
+#' joined together via `+`. See 'Details' and the package vignettes for more
 #' information. The function `obs` is a shorthand alias for `dynamiteformula`,
 #' and `aux` is a shorthand alias for
 #' `dynamiteformula(formula, family = "deterministic")`.
@@ -28,8 +28,8 @@
 #' * Exponential: `exponential` (log-link).
 #' * Gamma: `gamma` (log-link, using mean and shape parameterization).
 #' * Beta: `beta` (logit-link, using mean and precision parameterization).
-#' * Student t: `student` (identity link, parametrized using degrees of
-#'   freedon, location and scale)
+#' * Student t: `student` (identity link, parameterized using degrees of
+#'   freedom, location and scale)
 #'
 #' The models in the \pkg{dynamite} package are defined by combining the
 #' channel-specific formulas defined via \R formula syntax.
@@ -116,6 +116,9 @@
 #' @param formula \[`formula`]\cr An \R formula describing the model.
 #' @param family \[`character(1)`]\cr The family name. See 'Details' for the
 #'   supported families.
+#' @param link \[`character(1)`]\cr The name of the link function to use or
+#'   `NULL`. See details for supported link functions and default values of
+#'   specific families.
 #' @return A `dynamiteformula` object.
 #' @srrstats {G2.3b} Uses tolower.
 #' @srrstats {RE1.0} Uses a formula interface.
@@ -146,7 +149,7 @@
 #'   obs(b ~ lag(b) * lag(logp) + lag(b) * lag(g), family = "bernoulli") +
 #'   aux(numeric(logp) ~ log(p + 1))
 #'
-dynamiteformula <- function(formula, family) {
+dynamiteformula <- function(formula, family, link = NULL) {
   stopifnot_(
     !missing(formula),
     "Argument {.arg formula} is missing."
@@ -170,10 +173,10 @@ dynamiteformula <- function(formula, family) {
   )
   family <- tolower(family)
   stopifnot_(
-    is_supported(family),
+    is_supported_family(family),
     "Family {.val {family}} is not supported."
   )
-  family <- do.call(paste0(family, "_"), args = list())
+  family <- do.call(paste0(family, "_"), args = list(link = link))
   stopifnot_(
     !"I" %in% all.names(formula),
     "{.code I(.)} is not supported by {.fun dynamiteformula}."
@@ -224,14 +227,15 @@ dynamiteformula <- function(formula, family) {
 #' @param fixed \[`integer()`]\cr Time-invariant covariate indices.
 #' @param varying \[`integer()`]\cr Time-varying covariate indices.
 #' @param random \[`integer()`]\cr Random effect covariate indices.
-#' @param has_fixed_intercept \[`logical(1)`]\cr Does the channel contain fixed
-#'   intercept?
+#' @param has_fixed_intercept \[`logical(1)`]\cr Does the channel contain
+#'   a fixed intercept?
 #' @param has_varying_intercept \[`logical(1)`]\cr Does the channel contain
-#'   varying intercept?
-#' @param has_random_intercept \[`logical(1)`]\cr Does the channel contain random
-#'   group-level intercept term?
+#'   a varying intercept?
+#' @param has_random_intercept \[`logical(1)`]\cr Does the channel contain
+#'   a random group-level intercept term?
 #' @noRd
-dynamitechannel <- function(formula, original = NULL, family, response, name = NULL,
+dynamitechannel <- function(formula, original = NULL,
+                            family, response, name = NULL,
                             fixed = integer(0L), varying = integer(0L),
                             random = integer(0L), specials = list(),
                             has_fixed_intercept = FALSE,
@@ -317,10 +321,26 @@ parse_formula <- function(x, family) {
     formula_parts
   )
   formulas <- lapply(paste0(responses, "~", formula_parts), as.formula)
-  predictors <- ulapply(formulas, function(y) {
-    find_nonlags(formula_rhs(y))
-  })
-  resp_pred <- responses %in% predictors
+  predictors <- lapply(
+    formulas,
+    function(y) {
+      find_nonlags(formula_rhs(y))
+    }
+  )
+  resp_pred <- vapply(
+    seq_along(responses),
+    function(i) {
+      responses[i] %in% predictors[[i]]
+    },
+    logical(1L)
+  )
+  # predictors <- ulapply(
+  #   formulas,
+  #   function(y) {
+  #     find_nonlags(formula_rhs(y))
+  #   }
+  # )
+  # resp_pred <- responses %in% predictors
   p <- sum(resp_pred)
   stopifnot_(
     !any(resp_pred),
@@ -338,14 +358,20 @@ parse_formula <- function(x, family) {
   )
 }
 
-#' Parse a Channel Name for a `dynamiteformula`
+#' Parse a Channel Name for a `dynamiteformula` To Be Used in Stan
+#'
+#' This function prepares a channel name such that it is valid for Stan. From
+#' Stan Reference Manual: "A variable by itself is a well-formed expression of
+#' the same type as the variable. Variables in Stan consist of ASCII strings
+#' containing only the basic lower-case and upper-case Roman letters, digits,
+#' and the underscore (_) character. Variables must start with a letter
+#' (a--z and A--Z) and may not end with two underscores (__)"
 #'
 #' @param x A `character` vector.
 #' @noRd
 parse_name <- function(x) {
   gsub("[^[:alnum:]_]+", "", x, perl = TRUE)
 }
-
 
 #' @rdname dynamiteformula
 #' @param e1 \[`dynamiteformula`]\cr A model formula specification.
@@ -453,6 +479,10 @@ get_names <- function(x) {
   vapply(x, function(y) y$name, character(1L))
 }
 
+#' Get Lagged Terms of All Formulas of a `dynamiteformula` Object
+#'
+#' @param x A `dynamiteformula` object.
+#' @noRd
 get_lag_terms <- function(x) {
   lapply(x, function(y) {
     unique(find_lags(formula_rhs(y$formula)))
@@ -467,6 +497,21 @@ get_nonlag_terms <- function(x) {
   lapply(x, function(y) {
     unique(find_nonlags(formula_rhs(y$original)))
   })
+}
+
+#' Get the Order of All Lag Terms of All Formulas of a `dynamiteformula` Object
+#'
+#' @param x A `dynamiteformula` object.
+#' @noRd
+get_lag_orders <- function(x) {
+  tmp <- lapply(x, function(y) {
+    tmp_ <- find_lag_orders(formula_rhs(y$original))
+    if (nrow(tmp_) > 0L) {
+      tmp_$resp <- y$response
+    }
+    tmp_
+  })
+  unique(rbindlist_(tmp[vapply(tmp, nrow, integer(1L)) > 0]))
 }
 
 #' Get Special Type Formula of a Dimension in a `dynamiteformula`
@@ -516,22 +561,226 @@ get_families <- function(x) {
 #' @noRd
 get_quoted <- function(x) {
   resp <- get_responses(x)
-  out <- list()
-  for (i in seq_along(x)) {
-    out[[i]] <- list(name = resp[i], expr = formula_rhs(x[[i]]$formula))
+  if (length(resp) > 0L) {
+    expr <- lapply(x, function(x) deparse1(formula_rhs(x$formula)))
+    quote_str <- paste0(
+      "`:=`(",
+      paste0(resp, " = ", expr, collapse = ","),
+      ")"
+    )
+    str2lang(quote_str)
+  } else {
+    NULL
   }
-  out
-  # if (length(resp) > 0L) {
-  #  expr <- lapply(x, function(x) deparse1(formula_rhs(x$formula)))
-  #  quote_str <- paste0(
-  #    "`:=`(",
-  #    paste0(resp, " = ", expr, collapse = ","),
-  #    ")"
-  #  )
-  #  str2lang(quote_str)
-  # } else {
-  #  NULL
-  # }
+}
+
+#' Get a Directed Acyclic Graph (DAG) of a `dynamiteformula` Object.
+#'
+#' @param x A `dynamiteformula` object.
+#' @param project A `logical` value. If `TRUE`, deterministic responses are
+#'   projected out of the DAG.
+#' @param covariates A `logical` value. If `TRUE`, fixed covariates are also
+#'   included in the DAG.
+#' @param format A `character` string describing how to label variable names.
+#' @noRd
+get_dag <- function(x, project = FALSE, covariates = FALSE,
+                    format = c("default", "expression", "lag")) {
+  f_ <- dag_formatter(format)
+  resp <- get_responses(x)
+  contemp_dep <- ifelse_(
+    covariates,
+    get_nonlag_terms(x),
+    lapply(get_nonlag_terms(x), function(y) y[y %in% resp])
+  )
+  lag_dep <- get_lag_orders(x)
+  cg <- attr(x, "channel_groups")
+  lag_dep <- ifelse_(
+    covariates,
+    lag_dep,
+    lag_dep[lag_dep$var %in% resp, ]
+  )
+  if (project) {
+    resp_det <- which_deterministic(x)
+    for (i in resp_det) {
+      contemp_pa <- contemp_dep[[i]]
+      k <- length(contemp_pa)
+      if (k > 0L) {
+        contemp_dep[-i] <- lapply(
+          contemp_dep[-i],
+          function(y) {
+            ifelse_(
+              contemp_pa %in% y,
+              union(y, contemp_pa),
+              y
+            )
+          }
+        )
+      }
+      lag_dep_pa <- lag_dep[lag_dep$resp == resp[i], ]
+      lag_dep_ch <- lag_dep[lag_dep$var == resp[i], ]
+      lag_dep_new <- vector(mode = "list", length = nrow(lag_dep_ch))
+      if (nrow(lag_dep_pa) > 0L || k > 0L) {
+        for (j in seq_len(nrow(lag_dep_ch))) {
+          lag_dep_new[[j]] <- data.frame(
+            var = c(contemp_pa, lag_dep_pa$var),
+            order = c(rep(0L, k), lag_dep_pa$order) + lag_dep_ch$order[j],
+            resp = lag_dep_ch$resp[j]
+          )
+        }
+      }
+      lag_dep <- rbind(
+        lag_dep[lag_dep$resp != resp[i] & lag_dep$var != resp[i], ],
+        rbindlist_(lag_dep_new)
+      )
+    }
+    resp_stoch <- which_stochastic(x)
+    contemp_dep <- contemp_dep[resp_stoch]
+    resp <- resp[resp_stoch]
+    cg <- cg[resp_stoch]
+  }
+  max_lag <- max(1L, max(lag_dep$order))
+  all_vars <- c(
+    resp,
+    unique(setdiff(union(unlist(contemp_dep), lag_dep$var), resp))
+  )
+  resp_lag <- expand.grid(var = all_vars, order = seq_len(max_lag))
+  v <- c(
+    f_(resp_lag$var, -1L * resp_lag$order),
+    f_(resp_lag$var, resp_lag$order),
+    f_(all_vars, 0L)
+  )
+  n <- length(v)
+  m <- nrow(lag_dep)
+  A <- matrix(
+    0L,
+    nrow = n,
+    ncol = n,
+    dimnames = replicate(2L, v, simplify = FALSE)
+  )
+  if (covariates) {
+    p <- length(resp)
+    resp <- all_vars
+    layout_y <- c(
+      rev(seq_along(resp[order(cg)])),
+      p + seq_len(length(all_vars) - p)
+    )
+  } else {
+    layout_y <- rev(seq_along(resp[order(cg)]))
+  }
+  resp_past <- f_(resp, -1L)
+  resp_future <- f_(resp, 1L)
+  resp_t <- f_(resp, 0L)
+  layout <- data.frame(var = v, x = NA, y = NA)
+  layout[layout$var %in% resp_t, "x"] <- 0.0
+  layout[layout$var %in% resp_t, "y"] <- layout_y
+  layout[layout$var %in% resp_past, "x"] <- -1.0
+  layout[layout$var %in% resp_past, "y"] <- layout_y
+  layout[layout$var %in% resp_future, "x"] <- 1.0
+  layout[layout$var %in% resp_future, "y"] <- layout_y
+  var_past <- f_(lag_dep$var, -1 * lag_dep$order)
+  resp_future <- f_(lag_dep$resp, lag_dep$order)
+  resp_t <- f_(lag_dep$resp, 0L)
+  var_t <- f_(lag_dep$var, 0L)
+  A[cbind(var_past, resp_t)] <- 1L
+  A[cbind(var_t, resp_future)] <- 1L
+  edgelist <- list()
+  edgelist[[1L]] <- data.frame(from = var_past, to = resp_t)
+  edgelist[[2L]] <- data.frame(from = var_t, to = resp_future)
+  e_idx <- 3L
+  for (i in seq_len(max_lag - 1L)) {
+    include <- (lag_dep$order + i) <= max_lag
+    var_past <- f_(lag_dep$var, -1 * (lag_dep$order + i))
+    var_past <- var_past[include]
+    resp_past <- f_(lag_dep$resp, -1 * i)
+    resp_past <- resp_past[include]
+    var_future <- f_(lag_dep$var, i)
+    var_future <- var_future[include]
+    resp_future <- f_(lag_dep$resp, (lag_dep$order + i))
+    resp_future <- resp_future[include]
+    A[cbind(var_past, resp_past)] <- 1L
+    A[cbind(var_future, resp_future)] <- 1L
+    edgelist[[e_idx]] <- data.frame(from = var_past, to = resp_past)
+    edgelist[[e_idx + 1L]] <- data.frame(from = var_future, to = resp_future)
+    resp_past <- f_(resp, -1L * (i + 1L))
+    resp_future <- f_(resp, i + 1L)
+    layout[layout$var %in% resp_past, "x"] <- (-1.0) * (i + 1L)
+    layout[layout$var %in% resp_past, "y"] <- layout_y
+    layout[layout$var %in% resp_future, "x"] <- (1.0) * (i + 1L)
+    layout[layout$var %in% resp_future, "y"] <- layout_y
+    e_idx <- e_idx + 2L
+  }
+  for (i in seq_along(contemp_dep)) {
+    k <- length(contemp_dep[[i]])
+    if (k > 0L) {
+      resp_ti <- f_(resp[i], 0L)
+      contemp_t <- f_(contemp_dep[[i]], 0L)
+      A[contemp_t, resp_ti] <- 1L
+      edgelist[[e_idx]] <- data.frame(from = contemp_t, to = resp_ti)
+      e_idx <- e_idx + 1L
+      for (j in seq_len(max_lag)) {
+        contemp_past <- f_(contemp_dep[[i]], -1L * j)
+        contemp_future <- f_(contemp_dep[[i]], j)
+        resp_past <- f_(resp[i], -1L * j)
+        resp_future <- f_(resp[i], j)
+        A[contemp_past, resp_past] <- 1L
+        A[contemp_future, resp_future] <- 1L
+        edgelist[[e_idx]] <-
+          data.frame(from = contemp_past, to = resp_past)
+        edgelist[[e_idx + 1L]] <-
+          data.frame(from = contemp_future, to = resp_future)
+        e_idx <- e_idx + 2L
+      }
+    }
+  }
+  list(A = A, edgelist = rbindlist_(edgelist), layout = layout)
+}
+
+#' Get the Markov Blanket of a Response Variable
+#'
+#' @param g Output of `get_dag()`.
+#' @param y A `character` string naming the response variable.
+#' @noRd
+get_markov_blanket <- function(g, y) {
+  A <- g$A
+  v <- colnames(A)
+  pa <- v[which(A[, y] == 1L)]
+  ch <- v[which(A[y, ] == 1L)]
+  pa_ch <- onlyif(
+    length(ch) > 0L,
+    unique(v[which(A[, ch, drop = FALSE] == 1L, arr.ind = TRUE)[, "row"]])
+  )
+  setdiff(union(c(ch, pa), pa_ch), y)
+}
+
+#' Create a Function to Format DAG Vertex Names
+#'
+#' @inheritParams get_dag
+#' @noRd
+dag_formatter <- function(format) {
+  switch(
+    format,
+    default = function(v, k) {
+      suffix <- c(" - ", "", " + ")
+      k_str <- as.character(abs(k))
+      k_str[k == 0L] <- ""
+      s <- sign(k) + 2L
+      paste0(v, "_{t", suffix[s], k_str, "}")
+    },
+    expression = function(v, k) {
+      suffix <- c(" - ", "", " + ")
+      k_str <- as.character(abs(k))
+      k_str[k == 0L] <- ""
+      s <- sign(k) + 2L
+      paste0(v, "[t", suffix[s], k_str, "]")
+    },
+    lag = function(v, k) {
+      suffix <- c("_lag", "", "_lead")
+      k_str <- as.character(abs(k))
+      k_str[k == 0L] <- ""
+      s <- sign(k) + 2L
+      paste0(v, suffix[s], k_str)
+    }
+  )
 }
 
 #' Get Indices of Deterministic Channels in a `dynamiteformula` Object
@@ -645,7 +894,7 @@ join_dynamiteformulas <- function(e1, e2) {
   topo <- topological_order(dep)
   stopifnot_(
     length(topo) > 0L,
-    "Cyclic dependency found in model formula."
+    "The model must be acyclic."
   )
   attributes(out) <- c(attributes(e1), attributes(e2))
   attr(out, "channel_groups") <- cg

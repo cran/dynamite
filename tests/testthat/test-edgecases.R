@@ -328,8 +328,7 @@ test_that("latent factors are handled correctly", {
   )
   expect_equal(
     c(
-      "sigma_lambda_y2", "tau_psi_y2", "psi_y2",
-      "sigma_lambda_y3", "psi_y3", "L_lf"
+      "zeta_y2", "kappa_y2", "psi_y2", "sigma_lambda_y3", "psi_y3", "L_lf"
     ),
     get_priors(obs_all_lfactor, test_data, "time", "group")$parameter[
       c(1:3, 6:7, 25)

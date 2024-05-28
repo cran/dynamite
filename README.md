@@ -29,31 +29,42 @@ methodology from many other approaches are:
 - Support for regular time-invariant effects, group-level random
   effects, and time-varying effects modeled via Bayesian P-splines.
 - Joint modeling of multiple measurements per individual (multiple
-  channels) based directly on the assumed data generating process.
+  channels) based directly on the assumed data-generating process.
   Individual channels can be univariate or multivariate.
 - Support for various distributions: Currently Gaussian, Multivariate
-  Gaussian, Student t, Categorical, Multinomial, Poisson, Bernoulli,
-  Binomial, Negative Binomial, Gamma, Exponential, and Beta
+  Gaussian, Student t, Categorical, Ordered, Multinomial, Poisson,
+  Bernoulli, Binomial, Negative Binomial, Gamma, Exponential, and Beta
   distributions are available, and these can be combined arbitrarily in
   multichannel models.
-- Allows evaluating realistic long-term counterfactual predictions which
-  take into account the dynamic structure of the model by posterior
-  predictive distribution simulation.
+- Allows evaluating realistic long-term counterfactual predictions that
+  take into account the dynamic structure of the model by efficient
+  posterior predictive distribution simulation.
 - Transparent quantification of parameter and predictive uncertainty due
   to a fully Bayesian approach.
+- Various visualization methods including a method for drawing and
+  producing a TikZ code of the directed acyclic graph (DAG) of the model
+  structure.
 - User-friendly and efficient R interface with state-of-the-art
   estimation via Stan. Both `rstan` and `cmdstanr` backends are
-  supported.
+  supported, with both parallel chains and within-chain parallelization.
 
-The `dynamite` package is developed with the support of Academy of
-Finland grant 331817 ([PREDLIFE](https://sites.utu.fi/predlife/en/)).
-For further information on DMPMs and the `dynamite` package, see the
-related [arXiv](https://arxiv.org/abs/2302.01607) and
-[SocArXiv](https://osf.io/preprints/socarxiv/mdwu5/) preprints.
+The `dynamite` package is developed with the support of the Research
+Council of Finland grant 331817
+([PREDLIFE](https://sites.utu.fi/predlife/en/)). For further information
+on DMPMs and the `dynamite` package, see the related papers:
+
+- Helske J. and Tikka S. (2024). Estimating Causal Effects from Panel
+  Data with Dynamic Multivariate Panel Models. *Advances in Life Course
+  Research*, 60, 100617. ([Journal
+  version](https://doi.org/10.1016/j.alcr.2024.100617),
+  [SocArXiv](https://osf.io/preprints/socarxiv/mdwu5/) preprint)
+- Tikka S. and Helske J. (2024). `dynamite`: An R Package for Dynamic
+  Multivariate Panel Models. ([arXiv](https://arxiv.org/abs/2302.01607)
+  preprint)
 
 ## Installation
 
-You can install the most recent stable version of `dynmite` from
+You can install the most recent stable version of `dynamite` from
 [CRAN](https://cran.r-project.org/package=dynamite) or the development
 version from [R-universe](https://r-universe.dev/search/) by running one
 the following lines:
@@ -71,7 +82,7 @@ group-specific random intercepts:
 
 ``` r
 set.seed(1)
-library(dynamite)
+library("dynamite")
 gaussian_example_fit <- dynamite(
   obs(y ~ -1 + z + varying(~ x + lag(y)) + random(~1), family = "gaussian") +
     splines(df = 20),
@@ -83,7 +94,7 @@ gaussian_example_fit <- dynamite(
 Summary of the model:
 
 ``` r
-gaussian_example_fit
+print(gaussian_example_fit)
 #> Model:
 #>   Family   Formula                                       
 #> y gaussian y ~ -1 + z + varying(~x + lag(y)) + random(~1)
@@ -94,57 +105,61 @@ gaussian_example_fit
 #> Grouping variable: id (Number of groups: 50)
 #> Time index variable: time (Number of time points: 30)
 #> 
-#> Smallest bulk-ESS: 557 (sigma_nu_y_alpha)
-#> Smallest tail-ESS: 1032 (sigma_nu_y_alpha)
-#> Largest Rhat: 1.006 (alpha_y[28])
+#> NUTS sampler diagnostics:
+#> 
+#> No divergences, saturated max treedepths or low E-BFMIs.
+#> 
+#> Smallest bulk-ESS: 661 (sigma_nu_y_alpha)
+#> Smallest tail-ESS: 1058 (sigma_nu_y_alpha)
+#> Largest Rhat: 1.003 (sigma_y)
 #> 
 #> Elapsed time (seconds):
 #>         warmup sample
-#> chain:1  5.169  2.753
-#> chain:2  4.897  1.763
+#> chain:1  5.824  3.531
+#> chain:2  5.669  3.612
 #> 
 #> Summary statistics of the time- and group-invariant parameters:
 #> # A tibble: 6 × 10
 #>   variable      mean median      sd     mad     q5   q95  rhat ess_bulk ess_tail
-#>   <chr>        <num>  <num>   <num>   <num>  <num> <num> <num>    <num>    <num>
-#> 1 beta_y_z    1.97   1.97   0.0121  0.0124  1.95   1.99  1.00     2122.    1385.
-#> 2 sigma_nu_y… 0.0944 0.0938 0.0112  0.0113  0.0774 0.114 0.999     557.    1032.
-#> 3 sigma_y     0.198  0.198  0.00368 0.00382 0.192  0.204 1.00     2169.    1398.
-#> 4 tau_alpha_y 0.209  0.202  0.0497  0.0453  0.143  0.298 1.00     1237.    1419.
-#> 5 tau_y_x     0.362  0.353  0.0674  0.0650  0.268  0.485 1.00     2177.    1670.
-#> 6 tau_y_y_la… 0.106  0.103  0.0216  0.0206  0.0770 0.146 1.00     1936.    1144.
+#>   <chr>        <dbl>  <dbl>   <dbl>   <dbl>  <dbl> <dbl> <dbl>    <dbl>    <dbl>
+#> 1 beta_y_z    1.97   1.97   0.0116  0.0112  1.95   1.99   1.00    2815.    1434.
+#> 2 sigma_nu_y… 0.0944 0.0933 0.0114  0.0107  0.0780 0.114  1.00     661.    1058.
+#> 3 sigma_y     0.198  0.198  0.00373 0.00362 0.192  0.204  1.00    2580.    1254.
+#> 4 tau_alpha_y 0.212  0.205  0.0483  0.0432  0.146  0.301  1.00    1731.    1606.
+#> 5 tau_y_x     0.364  0.355  0.0740  0.0648  0.266  0.494  1.00    2812.    1504.
+#> 6 tau_y_y_la… 0.107  0.105  0.0219  0.0213  0.0781 0.148  1.00    2387.    1682.
 ```
 
 Posterior estimates of time-varying effects:
 
 ``` r
-plot_deltas(gaussian_example_fit, scales = "free")
+plot(gaussian_example_fit, types = c("alpha", "delta"), scales = "free")
 ```
 
 <img src="man/figures/README-unnamed-chunk-7-1.png" style="display: block; margin: auto;" />
 
-And group-specific intercepts:
+And group-specific intercepts (for first 10 groups):
 
 ``` r
-plot_nus(gaussian_example_fit, groups = 1:10)
+plot(gaussian_example_fit, types = "nu", groups = 1:10)
 ```
 
 <img src="man/figures/README-unnamed-chunk-8-1.png" style="display: block; margin: auto;" />
 
-Traceplots and density plots:
+Traceplots and density plots for time-invariant parameters:
 
 ``` r
-plot(gaussian_example_fit, type = "beta")
+plot(gaussian_example_fit, plot_type = "trace", types = "beta")
 ```
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" style="display: block; margin: auto;" />
 
-Posterior predictive samples for the first 4 groups (samples based on
-the posterior distribution of model parameters and observed data on
-first time point):
+Posterior predictive samples for the first 4 groups (using the samples
+based on the posterior distribution of the model parameters and observed
+data on the first time point):
 
 ``` r
-library(ggplot2)
+library("ggplot2")
 pred <- predict(gaussian_example_fit, n_draws = 100)
 pred |>
   dplyr::filter(id < 5) |>
@@ -158,7 +173,15 @@ pred |>
 
 <img src="man/figures/README-unnamed-chunk-10-1.png" style="display: block; margin: auto;" />
 
-For more examples, see the package vignette and the [blog post about
+Visualizing the model structure as a DAG (a snapshot at time `t`):
+
+``` r
+plot(gaussian_example_fit, plot_type = "dag", show_covariates = TRUE)
+```
+
+<img src="man/figures/README-unnamed-chunk-11-1.png" style="display: block; margin: auto;" />
+
+For more examples, see the package vignettes and the [blog post about
 dynamite](https://ropensci.org/blog/2023/01/31/dynamite-r-package/).
 
 ## Related packages

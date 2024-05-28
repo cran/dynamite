@@ -23,8 +23,9 @@
 #'
 as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
                                       row.names = NULL, optional = FALSE,
-                                      parameters = NULL,
-                                      responses = NULL, types = NULL,
+                                      types = NULL, parameters = NULL,
+                                      responses = NULL,
+                                      times = NULL, groups = NULL,
                                       summary = FALSE, probs = c(0.05, 0.95),
                                       include_fixed = TRUE, ...) {
   stopifnot_(
@@ -57,6 +58,7 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
     ),
     "Argument {.arg responses} must be a {.cls character} vector."
   )
+  types <- onlyif(is.character(types), tolower(types))
   stopifnot_(
     checkmate::test_character(
       x = types,
@@ -65,6 +67,22 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
       null.ok = TRUE
     ),
     "Argument {.arg types} must be a {.cls character} vector."
+  )
+  stopifnot_(
+    checkmate::test_numeric(
+      x = times,
+      min.len = 1L,
+      null.ok = TRUE
+    ),
+    "Argument {.arg times} must be a {.cls integer} vector."
+  )
+  stopifnot_(
+    checkmate::test_vector(
+      x = groups,
+      min.len = 1L,
+      null.ok = TRUE
+    ),
+    "Argument {.arg groups} must be a vector."
   )
   stopifnot_(
     checkmate::test_flag(x = summary),
@@ -92,18 +110,18 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
   if (is.null(responses)) {
     responses <- all_responses
   } else {
-    z <- responses %in% all_responses
+    valid_responses <- responses %in% all_responses
     stopifnot_(
-      all(z),
-      "Model does not contain response variable{?s} {.var {responses[!z]}}."
+      all(valid_responses),
+      c(
+        "Argument {.arg responses} contains invalid response variable names.",
+        `x` = "Response variable{?s} {.val {responses[!valid_responses]}}
+               {?is/are} not recognized.",
+        `i` = "The response variable{?s} of the model
+               {?is/are} {.val {all_responses}}."
+      )
     )
   }
-  all_types <- c(
-    "alpha", "beta", "delta", "tau", "tau_alpha", "xi",
-    "sigma_nu", "sigma", "phi", "nu", "lambda", "sigma_lambda",
-    "psi", "tau_psi", "corr", "corr_psi", "corr_nu",
-    "omega", "omega_alpha", "omega_psi"
-  )
   if (is.null(types)) {
     types <- ifelse_(
       is.null(parameters),
@@ -111,11 +129,15 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
       all_types
     )
   } else {
-    types <- onlyif(is.character(types), tolower(types))
-    types <- try(match.arg(types, all_types, TRUE), silent = TRUE)
+    match_types <- match(types, all_types)
+    valid_types <- !is.na(match_types)
     stopifnot_(
-      !inherits(types, "try-error"),
-      "Argument {.arg type} contains unknown types."
+      all(valid_types),
+      c(
+        "Argument {.arg types} contains invalid types.",
+        `x` = "Type{?s} {.val {types[!valid_types]}} {?is/are} not recognized.",
+        `i` = "Use {.fun get_parameter_types} to check available types."
+      )
     )
   }
   values <- function(type, response, category) {
@@ -164,6 +186,12 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
     d[, .draw := rep_len(seq_len(n_r * n_c), n_d)]
     d[, .iteration := rep_len(seq_len(n_r), n_d)]
     d[, .chain := rep_len(rep(seq_len(n_c), each = n_r), n_d)]
+    if (!is.null(times)) {
+      d <- d[time %in% times, , env = list(times = times)]
+    }
+    if (!is.null(groups)) {
+      d <- d[group %in% groups, , env = list(groups = I(groups))]
+    }
     d
   }
   # avoid NSE notes from R CMD check
@@ -171,14 +199,15 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
   category <- group <- parameter <- response <- NULL
   catstr <- time <- type <- value <- NULL
   out_all <- NULL
-  if ("xi" %in% types) {
-    out_all <- data.table::data.table(
-      type = "xi",
-      response = "",
-      category = NA_character_,
-      parameter = "xi"
-    )
-  }
+  # shrinkage not supported for now
+  # if ("xi" %in% types) {
+  #   out_all <- data.table::data.table(
+  #     type = "xi",
+  #     response = "",
+  #     category = NA_character_,
+  #     parameter = "xi"
+  #   )
+  # }
   if ("corr_nu" %in% types) {
     out_all <- rbind(
       out_all,
@@ -201,11 +230,22 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
       )
     )
   }
-  categories <- c(
-    NA_character_,
-    ulapply(
-      attr(x$stan$responses, "resp_class"),
-      function(y) attr(y, "levels")[-1L]
+  categories <- unique(
+    c(
+      NA_character_,
+      ulapply(
+        unlist(x$stan$responses),
+        function(y) {
+          channel <- get_channel(x, y)
+          if (is_cumulative(channel$family)) {
+            seq_len(channel$S - 1L)
+          } else if (is_categorical(channel$family)) {
+            channel$categories[-1L]
+          } else {
+            NA_character_
+          }
+        }
+      )
     )
   )
   tmp <- data.table::as.data.table(
@@ -238,7 +278,7 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
   n_pars <- nrow(out)
   stopifnot_(
     n_pars > 0L,
-    "No parameters of type {.var {types}} found for any of the response
+    "No parameters of type {.var {types}} were found for any of the response
      channels {.var {responses}}."
   )
   all_values <- vector(mode = "list", length = n_pars + 1L)
@@ -267,12 +307,13 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
   out <- data.table::rbindlist(all_values, fill = TRUE)
   if (!is.null(parameters)) {
     data.table::setkey(out, "parameter")
-    found_pars <- parameters %in% unique(out$parameter)
+    valid_pars <- parameters %in% unique(out$parameter)
     stopifnot_(
-      all(found_pars),
+      all(valid_pars),
       c(
-        "Parameter{?s} {.var {parameters[!found_pars]}} not found in
-         the model output.",
+        "Argument {.arg parameters} contains invalid parameter names.",
+        `x` = "Parameter{?s} {.val {parameters[!valid_pars]}} {?is/are}
+               not recognized.",
         `i` = "Use {.fun get_parameter_names} to check available parameters."
       )
     )
@@ -331,18 +372,20 @@ as_data_table_default <- function(type, draws, response, ...) {
   )
 }
 
+#' Shrinkage feature removed at least for now.
+#'
 #' @describeIn as_data_table_default Data Table for a "xi" Parameter
 #' @noRd
-as_data_table_xi <- function(x, draws, n_draws, ...) {
-  D <- x$stan$model_vars$D
-  data.table::data.table(
-    parameter = rep(
-      paste0("xi_d", seq_len(D - 1L)),
-      each = n_draws
-    ),
-    value = c(draws)
-  )
-}
+# as_data_table_xi <- function(x, draws, n_draws, ...) {
+#   D <- x$stan$model_vars$D
+#   data.table::data.table(
+#     parameter = rep(
+#       paste0("xi_d", seq_len(D - 1L)),
+#       each = n_draws
+#     ),
+#     value = c(draws)
+#   )
+# }
 
 #' @describeIn as_data_table_default Data Table for a "corr_nu" Parameter
 #' @noRd
@@ -504,7 +547,11 @@ as_data_table_omega <- function(x, draws, n_draws, response, category, ...) {
     names(get_channel(x, response)$J_varying)
   )
   k <- length(var_names)
-  data.table::data.table(
+  params_ord <- rep(
+    paste0(rep(var_names, each = D), "_d", rep(seq_len(D), k)),
+    each = n_draws
+  )
+  tmp <- data.table::data.table(
     parameter = rep(
       paste0(var_names, "_d", rep(seq_len(D), each = k)),
       each = n_draws
@@ -512,6 +559,12 @@ as_data_table_omega <- function(x, draws, n_draws, response, category, ...) {
     value = c(draws),
     category = category
   )
+  # avoid NSE notes from R CMD check
+  parameter <- NULL
+  tmp[
+    order(match(parameter, params_ord)), ,
+    env = list(params_ord = I(params_ord))
+  ]
 }
 
 #' @describeIn as_data_table_default Data Table for a "omega_alpha" Parameter
@@ -586,7 +639,21 @@ as_data_table_lambda <- function(x, draws, n_draws, response, ...) {
 as_data_table_sigma_lambda <- function(draws, response, ...) {
   as_data_table_default("sigma_lambda", draws, response)
 }
-
+#' @describeIn as_data_table_default Data Table for a "tau_psi" Parameter
+#' @noRd
+as_data_table_tau_psi <- function(draws, response, ...) {
+  as_data_table_default("tau_psi", draws, response)
+}
+#' @describeIn as_data_table_default Data Table for a "kappa" Parameter
+#' @noRd
+as_data_table_kappa <- function(draws, response, ...) {
+  as_data_table_default("kappa", draws, response)
+}
+#' @describeIn as_data_table_default Data Table for a "zeta" Parameter
+#' @noRd
+as_data_table_zeta <- function(draws, response, ...) {
+  as_data_table_default("zeta", draws, response)
+}
 #' @describeIn as_data_table_default Data Table for a "psi" Parameter
 #' @noRd
 as_data_table_psi <- function(x, draws, n_draws, response,
@@ -610,12 +677,6 @@ as_data_table_psi <- function(x, draws, n_draws, response,
     time = rep(time_points, each = n_draws),
     category = category
   )
-}
-
-#' @describeIn as_data_table_default Data Table for a "tau_psi" Parameter
-#' @noRd
-as_data_table_tau_psi <- function(draws, response, ...) {
-  as_data_table_default("tau_psi", draws, response)
 }
 
 #' @describeIn as_data_table_default Data Table for a "omega_psi" Parameter
@@ -653,3 +714,110 @@ as_data_table_corr <- function(x, draws, n_draws, resps, ...) {
     value = c(draws)
   )
 }
+
+#' @describeIn as_data_table_default Data Table for a "cutpoint" Parameter
+#' @noRd
+as_data_table_cutpoint <- function(x, draws, response,
+                                    n_draws, include_fixed, ...) {
+  channel <- get_channel(x, response)
+  S <- channel$S
+  fixed <- x$stan$fixed
+  all_time_points <- sort(unique(x$data[[x$time_var]]))
+  if (channel$has_varying_intercept) {
+    time_points <- ifelse_(
+      include_fixed,
+      all_time_points,
+      all_time_points[seq.int(fixed + 1L, length(all_time_points))]
+    )
+    n_na <- include_fixed * fixed * n_draws
+    n_time <- length(time_points)
+    n_time2 <- n_time - include_fixed * fixed
+    data.table::rbindlist(lapply(seq_len(S - 1L), function(i) {
+      idx <- (i - 1L) * n_time2 + seq_len(n_time2)
+      data.table::data.table(
+        parameter = paste0("cutpoint_", response),
+        value = c(
+          rep(NA, n_na),
+          c(draws[, , idx])
+        ),
+        time = rep(time_points, each = n_draws),
+        category = i
+      )
+    }))
+  } else {
+    data.table::data.table(
+      parameter = paste0("cutpoint_", response),
+      category = rep(seq_len(S - 1L), each = n_draws),
+      value = c(draws)
+    )
+  }
+}
+
+# Parameter types ---------------------------------------------------------
+
+all_types <- c(
+  "alpha",
+  "beta",
+  "corr",
+  "corr_nu",
+  "corr_psi",
+  "cutpoint",
+  "delta",
+  "lambda",
+  "nu",
+  "omega",
+  "omega_alpha",
+  "omega_psi",
+  "phi",
+  "psi",
+  "sigma",
+  "sigma_lambda",
+  "tau_psi",
+  "sigma_nu",
+  "tau",
+  "tau_alpha",
+  "kappa",
+  "zeta"
+  #"xi" # shrinkage not supported for now
+)
+
+fixed_types <- c(
+  "alpha",
+  "beta",
+  "corr",
+  "corr_nu",
+  "corr_psi",
+  "cutpoint",
+  "lambda",
+  "nu",
+  "omega",
+  "omega_alpha",
+  "omega_psi",
+  "phi",
+  "sigma",
+  "sigma_lambda",
+  "tau_psi",
+  "sigma_nu",
+  "tau",
+  "tau_alpha",
+  "kappa",
+  "zeta"
+  #"xi" # shrinkage not supported for now
+)
+
+varying_types <- c(
+  "alpha",
+  "cutpoint",
+  "delta",
+  "psi"
+)
+
+default_types <- c(
+  "alpha",
+  "beta",
+  "cutpoint",
+  "delta",
+  "lambda",
+  "nu",
+  "psi"
+)

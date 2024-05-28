@@ -5,15 +5,7 @@
 #' @export
 #' @family output
 #' @param object \[`dynamitefit`]\cr The model fit object.
-#' @param type  \[`character(1)`]\cr Either `beta` (the default) for
-#'   time-invariant coefficients, `delta` for time-varying coefficients,
-#'   `nu` for random effects, `lambda` for factor loadings, or `psi` for
-#'   latent factor. Ignored if the argument `parameters` is supplied.
-#' @param include_alpha \[`logical(1)`]\cr If `TRUE` (default), extracts also
-#'   time-invariant intercept term alpha if time-invariant parameters beta are
-#'   extracted, and time-varying alpha if time-varying delta are extracted.
-#'   Ignored if the argument `parameters` is supplied.
-#'  @param summary \[`logical(1)`]\cr If `TRUE` (default), returns posterior
+#' @param summary \[`logical(1)`]\cr If `TRUE` (default), returns posterior
 #'   mean, standard deviation, and posterior quantiles (as defined by the
 #'   `probs` argument) for all parameters. If `FALSE`, returns the
 #'   posterior samples instead.
@@ -28,53 +20,26 @@
 #' deltas <- coef(gaussian_example_fit, type = "delta")
 #'
 coef.dynamitefit <- function(object,
+                             types = c("alpha", "beta", "delta"),
                              parameters = NULL,
-                             type = c("beta", "delta", "nu", "lambda", "psi"),
-                             responses = NULL, summary = TRUE,
-                             probs = c(0.05, 0.95),
-                             include_alpha = TRUE, ...) {
-  if (is.null(parameters)) {
-    type <- onlyif(is.character(type), tolower(type))
-    type <- try(
-      match.arg(type, c("beta", "delta", "nu", "lambda", "psi")),
-      silent = TRUE
-    )
-    stopifnot_(
-      !inherits(type, "try-error"),
-      "Argument {.arg type} must be either {.val beta}, {.val delta},
-      {.val nu}, {.val lambda}, or {.val psi}."
-    )
-    stopifnot_(
-      checkmate::test_flag(x = include_alpha),
-      "Argument {.arg include_alpha} must be single {.cls logical} value."
-    )
-  }
-
-  if (is.null(parameters) && include_alpha && type %in% c("beta", "delta")) {
-    types <- c("alpha", type)
-    out <- as.data.frame.dynamitefit(
-      object,
-      parameters = parameters,
-      types = types,
-      responses = responses,
-      summary = summary,
-      probs = probs
-    )
-    # remove extra alphas
-    if (identical(type, "delta")) {
-      out <- out[!is.na(out$time), ]
-    } else {
-      out <- out[is.na(out$time), ]
-    }
-  } else {
-    out <- as.data.frame.dynamitefit(
-      object,
-      parameters = parameters,
-      types = type,
-      responses = responses,
-      summary = summary,
-      probs = probs
-    )
-  }
-  out
+                             responses = NULL, times = NULL, groups = NULL,
+                             summary = TRUE, probs = c(0.05, 0.95), ...) {
+  stopifnot_(
+    !missing(object),
+    "Argument {.arg object} is missing."
+  )
+  stopifnot_(
+    is.dynamitefit(object),
+    "Argument {.arg object} must be a {.cls dynamitefit} object."
+  )
+  as.data.frame.dynamitefit(
+    x = object,
+    types = types,
+    parameters = parameters,
+    responses = responses,
+    times = times,
+    groups = groups,
+    summary = summary,
+    probs = probs
+  )
 }

@@ -9,9 +9,8 @@
 #' is triggered if pareto k values of any group exceeds the threshold.
 #'
 #' @export
-#' @export lfo
 #' @family diagnostics
-#' @aliases lfo
+#' @rdname lfo
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param L  \[`integer(1)`]\cr Positive integer defining how many time points
 #'   should be used for the initial fit.
@@ -47,10 +46,30 @@
 #'   )
 #'   out$ELPD
 #'   out$ELPD_SE
+#'   plot(out)
 #' }
 #' }
 #'
-lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
+lfo <- function(x, ...) {
+  UseMethod("lfo", x)
+}
+
+#' @export
+#' @rdname lfo
+lfo.dynamitefit <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
+  stopifnot_(
+    !missing(x),
+    "Argument {.arg x} is missing."
+  )
+  stopifnot_(
+    is.dynamitefit(x),
+    "Argument {.arg x} must be a {.cls dynamitefit} object."
+  )
+  stopifnot_(
+    is.null(x$imputed),
+    "Leave-future-out cross-validation is not supported for models
+     estimated using multiple imputation."
+  )
   stopifnot_(
     !is.null(x$stanfit),
     "No Stan model fit is available."
@@ -69,24 +88,28 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
   )
   time_var <- x$time_var
   group_var <- x$group_var
-  timepoints <- sort(unique(x$data[[time_var]]))
-  T_ <- length(timepoints)
+  tp <- sort(unique(x$data[[time_var]]))
+  T_ <- length(tp)
   stopifnot_(
     checkmate::test_int(x = L, lower = 0, upper = T_),
     "Argument {.arg L} must be a single {.cls integer} between 0 and {T_}."
   )
   responses <- get_responses(x$dformulas$stoch)
   d <- data.table::copy(x$data)
-  set_na_ <- d[[time_var]] > timepoints[L]
-  # d[set_na, (responses) := NA, env = list(set_na = set_na)]
-  d[set_na_, (responses) := NA]
+  d[
+    time > tp[L],
+    (responses) := NA,
+    env = list(time = time_var, tp = tp, L = L)
+  ]
   if (verbose) {
     message_("Estimating model with {L} time points.")
   }
   fit <- update_(x, data = d, refresh = 0, ...)
 
+  idx_draws <- seq.int(1, ndraws(fit))
+  n_draws <- length(idx_draws)
   # would be faster to use only data
-  # x$data[eval(time) >= timepoints[L] - x$stan$fixed]
+  # x$data[eval(time) >= tp[L] - x$stan$fixed]
   # but in a case of missing data this is not necessarily enough
   out <- initialize_predict(
     fit,
@@ -97,84 +120,78 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
     impute = "none",
     new_levels = "none",
     global_fixed = FALSE,
-    n_draws = NULL,
+    idx_draws,
     expand = FALSE,
     df = FALSE
   )$simulated
   # avoid NSE notes from R CMD check
-  loglik <- patterns <- .draw <- NULL
-  n_draws <- ndraws(x)
+  loglik <- patterns <- .draw <- group <- groups <- time <- NULL
   # sum the log-likelihood over the channels and non-missing time points
   # for each group, time, and draw
   # drop those id&time pairs which contain NA
-  subset_indices_ <- out[[time_var]] > timepoints[L]
-  lls <- #stats::na.omit(
-    out[
-    subset_indices_
-    # time > timepoints[L], #,
-    # env = list(time = time, timepoints = timepoints, L = L)
+  lls <- out[
+    time > tp[L],
+    env = list(time = time_var, tp = tp, L = L)
   ][,
-    loglik := rowSums(.SD),
+    loglik := base::rowSums(.SD),
     .SDcols = patterns("_loglik$")
   ][,
     .SD,
     .SDcols = !patterns("_loglik$")
   ]
-  #)
   elpds <- vector("list", T_ - L)
-  subset_index_ <- lls[[time_var]] == timepoints[L + 1L]
-  elpds[[1L]] <- stats::na.omit(lls[
-    subset_index_
-    # time == timepoints[L + 1L], ,
-    # env = list(time = time, timepoints = timepoints, L = L)
-  ][,
-    list(elpd = log_mean_exp(loglik)),
-    by = c(time_var, group_var)
-    # by = list(time, id)#,
-    # env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
-  ][["elpd"]])
+  elpds[[1L]] <- stats::na.omit(
+    lls[
+      time == tp[L + 1L],
+      env = list(time = time_var, tp = tp, L = L)
+    ][,
+      list(elpd = log_mean_exp(loglik)),
+      by = list(time, group),
+      env = list(
+        log_mean_exp = "log_mean_exp",
+        time = time_var,
+        group = group_var
+      )
+    ][["elpd"]]
+  )
   i_refit <- L
-  refits <- timepoints[L]
+  refits <- tp[L]
   ks <- vector("list", T_ - L - 1L)
   for (i in seq.int(L + 1L, T_ - 1L)) {
-    subset_index_ <- lls[[time_var]] == timepoints[i + 1L]
-    if (lls[subset_index_, .N] > 0L) {
-      # .N,
-      # env = list(time = time, i = i)] > 0L) {
-      logratio_subset_index_ <-
-        lls[[time_var]] > timepoints[i_refit] &
-          lls[[time_var]] <= timepoints[i]
+    if (lls[
+      time == tp[i + 1L],
+      .N,
+      env = list(time = time_var, tp = tp, i = i)] > 0L) {
       logratio <- lls[
-        logratio_subset_index_, # ,
-        # env = list(
-        #  time = time,
-        #  timepoints = timepoints,
-        #  i = i,
-        #  i_refit = i_refit
-        # )
+        time > tp[i_refit] & time <= tp[i],
+        env = list(
+          time = time_var,
+          tp = tp,
+          i = i,
+          i_refit = i_refit
+        )
       ][,
-        list(logratio = sum(loglik, na.rm = TRUE)),
-        # by = list(id, .draw),
-        by = c(group_var, ".draw")
+        list(logratio = base::sum(loglik, na.rm = TRUE)),
+        by = groups,
+        env = list(groups = I(c(group_var, ".draw")))
       ]
       lr <- matrix(logratio$logratio, nrow = n_draws, byrow = TRUE)
-      lw_subset_index_ <- lls[[time_var]] == timepoints[i + 1]
       ll <- matrix(
         lls[
-          lw_subset_index_,
-          loglik # ,
-          # env = list(time = time, timepoints = timepoints, i = i)
-        ], nrow = n_draws, byrow = TRUE
+          time == tp[i + 1],
+          loglik,
+          env = list(time = time_var, tp = tp, i = i)
+        ],
+        nrow = n_draws,
+        byrow = TRUE
       )
-      non_na_idx <- intersect(which(!is.na(colSums(lr))), which(!is.na(colSums(ll))))
+      non_na_idx <- intersect(
+        which(!is.na(colSums(lr))),
+        which(!is.na(colSums(ll)))
+      )
       lr <- lr[, non_na_idx]
       ll <- ll[, non_na_idx]
-      psis_obj <- suppressWarnings(
-        loo::psis(
-          lr,
-          r_eff = NA
-        )
-      )
+      psis_obj <- suppressWarnings(loo::psis(lr))
       k <- loo::pareto_k_values(psis_obj)
       ks[[i - L]] <- k
       if (any(k > k_threshold)) {
@@ -183,11 +200,13 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
         }
         # refit the model based on the first i time points
         i_refit <- i
-        refits <- c(refits, timepoints[i])
+        refits <- c(refits, tp[i])
         d <- data.table::copy(x$data)
-        set_na_ <- d[[x$time_var]] > timepoints[i]
-        # d[set_na, (responses) := NA, env = list(set_na = set_na)]
-        d[set_na_, (responses) := NA]
+        d[
+          time > tp[i],
+          (responses) := NA,
+          env = list(time = time_var, tp = tp, i = i)
+        ]
         fit <- update_(fit, data = d, refresh = 0, ...)
         out <- initialize_predict(
           fit,
@@ -198,31 +217,33 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
           impute = "none",
           new_levels = "none",
           global_fixed = FALSE,
-          n_draws = NULL,
+          idx_draws,
           expand = FALSE,
           df = FALSE
         )$simulated
-        threshold_subset_index_ <- out[[time_var]] > timepoints[L]
         lls <- out[
-          threshold_subset_index_, # ,
-          # env = list(time = time, timepoint = timepoints, L = L)
+          time > tp[L],
+          env = list(time = time_var, tp = tp, L = L)
         ][,
-          loglik := rowSums(.SD),
+          loglik := base::rowSums(.SD),
           .SDcols = patterns("_loglik$")
         ][,
           .SD,
           .SDcols = !patterns("_loglik$")
         ]
-        elpds_subset_index_ <- lls[[time_var]] == timepoints[i + 1L]
-        elpds[[i - L + 1L]] <- stats::na.omit(lls[
-          elpds_subset_index_ # ,
-          # env = list(time = time, timepoints = timepoints, i = i)
-        ][,
-          list(elpd = log_mean_exp(loglik)),
-          # by = list(time, id)#,
-          by = c(time_var, group_var)
-          # env = list(log_mean_exp = "log_mean_exp", time = time, id = id)
-        ][["elpd"]])
+        elpds[[i - L + 1L]] <- stats::na.omit(
+          lls[
+            time == tp[i + 1L],
+            env = list(time = time_var, tp = tp, i = i)
+          ][,
+            list(elpd = log_mean_exp(loglik)),
+            by = groups,
+            env = list(
+              log_mean_exp = "log_mean_exp",
+              groups = I(c(time_var, group_var))
+            )
+          ][["elpd"]]
+        )
       } else {
         lw <- loo::weights.importance_sampling(psis_obj, normalize = TRUE)
         elpds[[i - L + 1L]] <-
@@ -252,10 +273,12 @@ lfo <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
     class = "lfo"
   )
 }
+
 #' Print the results from the LFO
 #'
 #' Prints the summary of the leave-future-out cross-validation.
-#' @param x x \[`lfo`]\cr Output of the `lfo` method.
+#'
+#' @param x \[`lfo`]\cr Output of the `lfo` method.
 #' @param ... Ignored.
 #' @return Returns `x` invisibly.
 #' @export
@@ -288,9 +311,9 @@ print.lfo <- function(x, ...) {
 #' Plots Pareto k values per each time point (with one point per group),
 #' together with a horizontal line representing the used threshold.
 #'
-#' @param x \[`lfo`]\cr Output from the `lfo` function.
+#' @param x \[`lfo`]\cr Output of the `lfo` method.
 #' @param ... Ignored.
-#' @return A ggplot object.
+#' @return A `ggplot` object.
 #' @export
 #' @examples
 #' data.table::setDTthreads(1) # For CRAN

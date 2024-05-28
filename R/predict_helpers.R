@@ -131,10 +131,7 @@ parse_newdata <- function(dformulas, newdata, data, type, eval_type,
     time_scale = original_times[2L] - original_times[1L]
   )
   clear_names <- intersect(names(newdata), clear_names)
-  if (length(clear_names) > 0L) {
-    # TODO no need check length when data.table package is updated
-    newdata[, (clear_names) := NULL]
-  }
+  newdata[, (clear_names) := NULL]
   drop_unused(dformulas$all, newdata, group_var, time_var)
   type <- ifelse_(eval_type %in% c("fitted", "loglik"), eval_type, type)
   if (identical(type, "loglik")) {
@@ -152,11 +149,12 @@ parse_newdata <- function(dformulas, newdata, data, type, eval_type,
   }
   for (i in seq_along(resp_stoch)) {
     y <- resp_stoch[i]
-    if (type %in% c("mean", "link", "fitted")) {
+    family <- dformulas$stoch[[i]]$family
+    if (type %in% c("mean", "fitted")) {
       # create a separate column for each level of
       # a categorical response variables
       pred_col <- ifelse_(
-        is_categorical(dformulas$stoch[[i]]$family),
+        is_categorical(family) || (is_cumulative(family) && type != "link"),
         glue::glue("{y}_{type}_{categories[[y]]}"),
         glue::glue("{y}_{type}")
       )
@@ -252,27 +250,29 @@ parse_funs <- function(object, type, funs, categories) {
 #' @inheritParams dynamite
 #' @noRd
 fill_time_predict <- function(data, group_var, time_var, time_scale) {
-  # time_duplicated <- data[,
-  #  any(duplicated(time_var)),
-  #  by = group_var,
-  #  env = list(time_var = time_var)
-  # ]$V1
+  # avoid NSE notes from R CMD check
+  group <- NULL
   time <- sort(unique(data[[time_var]]))
   time_ivals <- diff(time)
   time_scale <- min(diff(time))
   full_time <- seq(time[1L], time[length(time)], by = time_scale)
-  data_groups <- as.integer(data[[group_var]])
-  group <- unique(data_groups)
-  n_group <- length(group)
+  n_group <- n_unique(data[[group_var]])
   time_duplicated <- logical(n_group)
   time_groups <- list(
     has_missing = logical(n_group),
     has_gaps = logical(n_group)
   )
   time_missing <- logical(n_group)
-  group_bounds <- c(0, data[, max(.I), by = group_var]$V1)
+  group_bounds <- c(
+    0L,
+    data[,
+      base::max(.I),
+      by = group,
+      env = list(group = group_var)
+    ]$V1
+  )
   for (i in seq_len(n_group)) {
-    idx_group <- seq(group_bounds[i] + 1, group_bounds[i + 1])
+    idx_group <- seq(group_bounds[i] + 1L, group_bounds[i + 1L])
     sub <- data[idx_group, ]
     time_duplicated[i] <- any(duplicated(sub[[time_var]]))
     time_groups$has_missing[i] <- !identical(sub[[time_var]], full_time)
@@ -289,19 +289,6 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
     )
   )
   if (length(time) > 1L) {
-    # time_groups <- data[,
-    # {
-    #  has_missing = !identical(time_var, full_time)
-    #  has_gaps = .N != (diff(range(time_var)) + 1L) * time_scale
-    #  list(has_missing, has_gaps)
-    # },
-    # by = group_var
-    # env = list(
-    #  time_var = time_var,
-    #  group_var = group_var,
-    #  time_scale = time_scale
-    # )
-    # ]
     if (any(time_groups$has_missing)) {
       data_names <- colnames(data)
       if (any(time_groups$has_gaps)) {
@@ -336,23 +323,23 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
 #' @param group_var \[`character(1)`]\cr Grouping variable name.
 #' @noRd
 impute_newdata <- function(newdata, impute, predictors, group_var) {
+  # avoid NSE notes from R CMD check
+  group <- NULL
   switch(impute,
     `locf` = {
       newdata[,
         (predictors) := lapply(.SD, locf),
         .SDcols = predictors,
-        by = group_var
-        # by = group_var,
-        # env = list(locf = locf)
+        by = group,
+        env = list(locf = locf, group = group_var)
       ]
     },
     `nocb` = {
       newdata[,
         (predictors) := lapply(.SD, nocb),
         .SDcols = predictors,
-        by = group_var
-        # by = group_var,
-        # env = list(locf = locf)
+        by = group,
+        env = list(nocb = nocb, group = group_var)
       ]
     },
     `none` = {
@@ -370,27 +357,44 @@ impute_newdata <- function(newdata, impute, predictors, group_var) {
 #' @param fixed \[integer(1)]\cr The number of fixed time points.
 #' @noRd
 clear_nonfixed <- function(newdata, newdata_null, resp_stoch, eval_type,
-                           group_var, time_var, clear_names,
-                           fixed, global_fixed) {
+                           group_var, fixed, global_fixed) {
+  # avoid NSE notes from R CMD check
+  group <- NULL
   if (newdata_null && identical(eval_type, "predicted")) {
     if (global_fixed) {
       clear_idx <- newdata[,
-        .I[seq.int(fixed + 1L, .N)],
-        by = group_var
-        # by = group_var,
-        # env = list(fixed = fixed)
+        .I[base::seq.int(fixed + 1L, .N)],
+        by = group,
+        env = list(fixed = fixed, group = group_var)
       ]$V1
     } else {
+      first_obs <- function(x) {
+        out <- base::which(
+          base::apply(!base::is.na(x), 1L, base::any)
+        )
+        ifelse_(base::length(out) == 0, 1L, out[1L])
+      }
       clear_idx <- newdata[,
-        .I[seq.int(fixed + which(apply(!is.na(.SD), 1L, any))[1L], .N)],
+        .I[
+          base::seq.int(
+            fixed + first_obs(.SD),
+            .N
+          )
+        ],
         .SDcols = resp_stoch,
-        by = group_var
-        # by = group_var,
-        # env = list(fixed = fixed, any = any)
+        by = group,
+        env = list(
+          fixed = fixed,
+          group = group_var,
+          first_obs = first_obs
+        )
       ]$V1
     }
-    # newdata[clear_idx, c(resp_stoch) := NA, env = list(clear_idx = clear_idx)]
-    newdata[clear_idx, c(resp_stoch) := NA]
+    newdata[
+      clear_idx,
+      c(resp_stoch) := NA,
+      env = list(clear_idx = clear_idx)
+    ]
   }
 }
 
@@ -498,24 +502,28 @@ expand_predict_output <- function(simulated, observed, df) {
 #' @inheritParams clear_nonfixed
 #' @noRd
 prepare_eval_envs <- function(object, simulated, observed,
-                              type, eval_type, n_draws,
+                              type, eval_type, idx_draws,
                               new_levels, group_var) {
-  samples <- rstan::extract(object$stanfit)
+  samples <- lapply(
+    posterior::as_draws_rvars(object$stanfit),
+    posterior::draws_of
+  )
   channel_vars <- object$stan$channel_vars
   channel_group_vars <- object$stan$channel_group_vars
   cg <- attr(object$dformulas$all, "channel_groups")
   n_cg <- n_unique(cg)
   eval_envs <- vector(mode = "list", length = n_cg)
-  idx_draws <- seq_len(n_draws)
   rand <- which_random(object$dformulas$all)
   n_group <- n_unique(observed[[group_var]])
+  n_draws <- length(idx_draws)
   k <- 0L # index of channel_vars
   l <- 0L # index of channel_group_vars
   orig_ids <- unique(object$data[[group_var]])
   new_ids <- unique(observed[[group_var]])
   extra_levels <- unique(new_ids[!new_ids %in% orig_ids])
   has_lfactor <- attr(object$dformulas$stoch, "lfactor")$P > 0
-  stopifnot_(identical(length(extra_levels), 0L) || !has_lfactor,
+  stopifnot_(
+    identical(length(extra_levels), 0L) || !has_lfactor,
     c(
       "Grouping variable {.var {group_var}} contains unknown levels:",
       `x` = "Level{?s} {.val {as.character(extra_levels)}}
@@ -598,9 +606,18 @@ prepare_eval_envs <- function(object, simulated, observed,
       j <- cg_idx[1L]
       k <- k + 1L
       resp <- object$dformulas$all[[j]]$response
+      resp_levels <- ifelse_(
+        is_cumulative(family),
+        attr(
+          attr(object$stan$responses, "resp_class")[[resp]],
+          "levels"
+        ),
+        resp
+      )
       prepare_eval_env_univariate(
         e = e,
         resp = resp,
+        resp_levels = resp_levels,
         cvars = channel_vars[[k]],
         samples = samples,
         nu_samples = nu_samples,
@@ -618,11 +635,12 @@ prepare_eval_envs <- function(object, simulated, observed,
 #' Prepare a Evaluation Environment for a Univariate Channel
 #'
 #' @noRd
-prepare_eval_env_univariate <- function(e, resp, cvars, samples, nu_samples,
-                                        has_random_effects,
+prepare_eval_env_univariate <- function(e, resp, resp_levels, cvars,
+                                        samples, nu_samples, has_random_effects,
                                         idx, type, eval_type) {
   alpha <- paste0("alpha_", resp)
   beta <- paste0("beta_", resp)
+  cutpoint <- paste0("cutpoint_", resp)
   delta <- paste0("delta_", resp)
   phi <- paste0("phi_", resp)
   sigma <- paste0("sigma_", resp)
@@ -649,11 +667,32 @@ prepare_eval_env_univariate <- function(e, resp, cvars, samples, nu_samples,
     nus <- make.unique(rep(paste0("nu_", resp), e$K_random))
     e$nu <- nu_samples[, , nus, drop = FALSE]
   }
-  if (cvars$has_fixed_intercept) {
-    e$alpha <- array(samples[[alpha]][idx], c(e$n_draws, 1L))
-  }
-  if (cvars$has_varying_intercept) {
-    e$alpha <- samples[[alpha]][idx, , drop = FALSE]
+  if (is_cumulative(e$family)) {
+    e$d <- cvars$S
+    e$mean_cols <- paste0(resp, "_mean_", resp_levels)
+    e$fitted_cols <- paste0(resp, "_fitted_", resp_levels)
+    e$invlink <- ifelse_(
+      identical(e$family$link, "logit"),
+      stats::plogis,
+      stats::pnorm
+    )
+    if (cvars$has_fixed_intercept) {
+      e$cutpoint <- samples[[cutpoint]][idx, , drop = FALSE]
+      e$cutpoint <- e$cutpoint[rep_len(e$n_draws, e$k), , drop = FALSE]
+      e$alpha <- matrix(0.0, e$n_draws, 1L)
+    }
+    if (cvars$has_varying_intercept) {
+      e$cutpoint <- samples[[cutpoint]][idx, , , drop = FALSE]
+      e$cutpoint <- e$cutpoint[rep_len(e$n_draws, e$k), , , drop = FALSE]
+      e$alpha <- matrix(0.0, e$n_draws, dim(e$cutpoint)[2L])
+    }
+  } else {
+    if (cvars$has_fixed_intercept) {
+      e$alpha <- array(samples[[alpha]][idx], c(e$n_draws, 1L))
+    }
+    if (cvars$has_varying_intercept) {
+      e$alpha <- samples[[alpha]][idx, , drop = FALSE]
+    }
   }
   if (cvars$has_lfactor) {
     e$lambda <- samples[[lambda]][idx, , drop = FALSE]
@@ -708,7 +747,7 @@ generate_sim_call_univariate <- function(resp, family, type, eval_type,
                                          has_varying_intercept,
                                          has_random_intercept,
                                          has_offset, has_lfactor) {
-
+  idx_cuts <- ifelse_(has_varying_intercept, "[, time, ]", "")
   out <- paste0(
     "{\n",
     "idx_draw <- seq.int(1L, n_draws) - n_draws\n",
@@ -796,13 +835,15 @@ prepare_eval_env_multivariate <- function(e, resp, resp_levels, cvars,
   e$d <- d
   e$resp <- resp
   e$L <- samples[[paste(c("L", resp), collapse = "_")]]
-  e$link_cols <- ifelse_(
-    is_multivariate(e$family) && !is_multinomial(e$family),
-    paste0(resp, "_link"),
-    paste0(resp, "_link_", resp_levels)
-  )
-  e$mean_cols <- paste0(resp, "_mean_", resp_levels)
-  e$fitted_cols <- paste0(resp, "_fitted_", resp_levels)
+  if (is_multivariate(e$family)) {
+    e$link_cols <- paste0(resp, "_link")
+    e$mean_cols <- paste0(resp, "_mean")
+    e$fitted_cols <- paste0(resp, "_fitted")
+  } else {
+    e$link_cols <- paste0(resp, "_link_", resp_levels)
+    e$mean_cols <- paste0(resp, "_mean_", resp_levels)
+    e$fitted_cols <- paste0(resp, "_fitted_", resp_levels)
+  }
   e$sigma <- matrix(0.0, e$n_draws, d)
   has_fixed <- logical(d)
   has_varying <- logical(d)
@@ -1017,6 +1058,19 @@ predict_expr$fitted$categorical <- "
   }}
 "
 
+predict_expr$fitted$cumulative <- "
+  prob <- cbind(1, invlink(xbeta - cutpoint{idx_cuts})) -
+    cbind(invlink(xbeta - cutpoint{idx_cuts}), 0)
+  for (s in 1:d) {{
+    data.table::set(
+      x = out,
+      i = idx,
+      j = fitted_cols[s],
+      value = prob[, s]
+    )
+  }}
+"
+
 predict_expr$fitted$multinomial <- "
   mval <- exp(xbeta - log_sum_exp_rows(xbeta, k, d))
   for (s in 1:d) {{
@@ -1082,7 +1136,7 @@ predict_expr$predicted$gaussian <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rnorm(k_obs, xbeta[idx_out], sigma[idx_out])
+    value = rnorm(k_obs, mean = xbeta[idx_out], sd = sigma[idx_out])
   )
 "
 
@@ -1114,6 +1168,17 @@ predict_expr$predicted$categorical <- "
   )
 "
 
+predict_expr$predicted$cumulative <- "
+  prob <- cbind(1, invlink(xbeta - cutpoint{idx_cuts})) -
+    cbind(invlink(xbeta - cutpoint{idx_cuts}), 0)
+  data.table::set(
+    x = out,
+    i = idx_data,
+    j = '{resp}',
+    value = max.col(log(prob) - log(-log(runif(k * d))))[idx_out]
+  )
+"
+
 predict_expr$predicted$multinomial <- "
   pred <- matrix(0L, k, d)
   n <- max(trials)
@@ -1139,7 +1204,7 @@ predict_expr$predicted$binomial <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbinom(k_obs, trials[idx_out], prob)
+    value = rbinom(k_obs, size = trials[idx_out], prob = prob)
   )
 "
 
@@ -1149,7 +1214,7 @@ predict_expr$predicted$bernoulli <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbinom(k_obs, 1, prob)
+    value = rbinom(k_obs, size = 1, prob = prob)
   )
 "
 
@@ -1159,7 +1224,7 @@ predict_expr$predicted$poisson <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rpois(k_obs, exp_xbeta[idx_out])
+    value = rpois(k_obs, lambda = exp_xbeta[idx_out])
   )
 "
 
@@ -1203,7 +1268,7 @@ predict_expr$predicted$beta <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = rbeta(k_obs,  mu * phi_obs, (1 - mu) * phi_obs)
+    value = rbeta(k_obs, shape1 = mu * phi_obs, shape2 = (1 - mu) * phi_obs)
   )
 "
 
@@ -1212,7 +1277,7 @@ predict_expr$predicted$student <- "
     x = out,
     i = idx_data,
     j = '{resp}',
-    value = xbeta[idx_out] + sigma[idx_out] * rt(k_obs, phi[idx_out])
+    value = xbeta[idx_out] + sigma[idx_out] * rt(k_obs, df = phi[idx_out])
   )
 "
 
@@ -1248,6 +1313,19 @@ predict_expr$mean$categorical <- "
       i = idx_data,
       j = mean_cols[s],
       value = mval[idx_out, s]
+    )
+  }}
+"
+
+predict_expr$mean$cumulative <- "
+  prob <- cbind(1, invlink(xbeta - cutpoint{idx_cuts})) -
+    cbind(invlink(xbeta - cutpoint{idx_cuts}), 0)
+  for (s in 1:d) {{
+    data.table::set(
+      x = out,
+      i = idx_data,
+      j = mean_cols[s],
+      value = prob[idx_out, s]
     )
   }}
 "
@@ -1345,7 +1423,7 @@ predict_expr$loglik$gaussian <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dnorm(y, xbeta, sigma, log = TRUE)
+    value = dnorm(y, mean = xbeta, sd = sigma, log = TRUE)
   )
 "
 
@@ -1379,6 +1457,17 @@ predict_expr$loglik$categorical <- "
   )
 "
 
+predict_expr$loglik$cumulative <- "
+  prob <- cbind(1, invlink(xbeta - cutpoint{idx_cuts})) -
+    cbind(invlink(xbeta - cutpoint{idx_cuts}), 0)
+  data.table::set(
+    x = out,
+    i = idx,
+    j = '{resp}_loglik',
+    value = log(prob[cbind(seq_along(y), y)])
+  )
+"
+
 predict_expr$loglik$multinomial <- "
   data.table::set(
     x = out,
@@ -1397,7 +1486,7 @@ predict_expr$loglik$binomial <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dbinom(y, trials, prob, log = TRUE)
+    value = dbinom(y, size = trials, prob = prob, log = TRUE)
   )
 "
 
@@ -1407,7 +1496,7 @@ predict_expr$loglik$bernoulli <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dbinom(y, 1, prob, log = TRUE)
+    value = dbinom(y, size = 1, prob = prob, log = TRUE)
   )
 "
 
@@ -1417,7 +1506,7 @@ predict_expr$loglik$poisson <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dpois(y, exp_xbeta, log = TRUE)
+    value = dpois(y, lambda = exp_xbeta, log = TRUE)
   )
 "
 
@@ -1455,7 +1544,7 @@ predict_expr$loglik$beta <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dbeta(y,  mu * phi, (1 - mu) * phi, log = TRUE)
+    value = dbeta(y,  shape1 = mu * phi, shape2 = (1 - mu) * phi, log = TRUE)
   )
 "
 
@@ -1464,6 +1553,6 @@ predict_expr$loglik$student <- "
     x = out,
     i = idx,
     j = '{resp}_loglik',
-    value = dt((y - xbeta)/sigma, phi, log = TRUE)
+    value = dt((y - xbeta) / sigma, df = phi, log = TRUE) - log(sigma)
   )
 "

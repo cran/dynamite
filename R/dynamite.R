@@ -65,7 +65,7 @@
 #'   sensitive to the choice of `grainsize`, see Stan manual on reduce-sum for
 #'   details.
 #' @param custom_stan_model \[`character(1)`]\cr An optional character string
-#'   that either contains a customized stan model code or a path to a `.stan`
+#'   that either contains a customized Stan model code or a path to a `.stan`
 #'   file that contains the code. Using this will override the generated model
 #'   code. For expert users only.
 #' @param debug \[`list()`]\cr A named list of form `name = TRUE` indicating
@@ -183,7 +183,7 @@ dynamite <- function(dformula, data, time, group = NULL,
   backend <- try(match.arg(backend, c("rstan", "cmdstanr")), silent = TRUE)
   stopifnot_(
     !inherits(backend, "try-error"),
-    "Argument {.arg backend} must be {.val rstan} or {.val cmdstanr}."
+    "Argument {.arg backend} must be either {.val rstan} or {.val cmdstanr}."
   )
   if (is.null(group)) {
     group <- ".group"
@@ -237,6 +237,12 @@ dynamite <- function(dformula, data, time, group = NULL,
   # copy so that get_data can still return the full stan_input via debug
   stan_input_out <- stan_input
   stan_input_out$sampling_vars <- NULL
+  n_draws <- ifelse_(
+    is.null(stanfit),
+    0L,
+    (stanfit@sim$n_save[1L] - stanfit@sim$warmup2[1L]) *
+      stanfit@sim$chains
+  )
   out <- structure(
     list(
       stanfit = stanfit,
@@ -248,6 +254,7 @@ dynamite <- function(dformula, data, time, group = NULL,
       time_var = time,
       priors = rbindlist_(stan_input$priors),
       backend = backend,
+      permutation = sample(n_draws),
       call = dynamite_call
     ),
     class = "dynamitefit"
@@ -350,8 +357,7 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
 dynamite_stan <- function(dformulas, data, data_name, group, time,
                           priors, backend, verbose, verbose_stan,
                           stanc_options, threads_per_chain, grainsize,
-                          custom_stan_model, debug,
-                          ...) {
+                          custom_stan_model, debug, ...) {
   stan_input <- prepare_stan_input(
     dformulas$stoch,
     data,
@@ -523,44 +529,100 @@ sampling_info <- function(dformulas, verbose, debug, backend) {
   }
 }
 
-#' Check Arguments Names Of `...` for Stan Sampling
+#' Check Argument Names Of `...` for Stan Sampling
 #'
 #' @inheritParams dynamite_stan
 #' @param dots The `...` arguments of `dynamite` as a `list`
 #' @noRd
 check_stan_args <- function(dots, verbose, backend) {
   dots_names <- names(dots)
+  common_args <- c(
+    "chains", "thin", "seed", "init", "show_messages", "refresh", "save_warmup"
+  )
+  rstan_args <- c(
+    "pars", "iter", "warmup", "check_data", "sample_file", "diagnostic_file",
+    "verbose", "algorithm", "control", "include", "open_progress", "cores",
+    "chain_id", "init_r", "test_grad", "append_samples", "enable_random_init"
+  )
+  cmdstanr_args <- c(
+    "save_latent_dynamics", "output_dir", "output_basename", "sig_figs",
+    "parallel_chains", "chain_ids", "threads_per_chain", "opencl_ids",
+    "iter_warmup", "iter_sampling", "max_treedepth", "adapt_engaged",
+    "adapt_delta", "step_size", "metric", "metric_file", "inv_metric",
+    "init_buffer", "term_buffer", "window", "fixed_param", "show_exceptions",
+    "diagnostics"
+  )
+  # cores not included here as it will be converted
+  cmdstanr_deprecated_args <- c(
+    "num_cores", "num_chains", "num_warmup", "num_samples",
+    "validate_csv", "save_extra_diagnostics", "max_depth", "stepsize"
+  )
   args <- ifelse_(
     identical(backend, "rstan"),
+    c(common_args, rstan_args),
+    c(common_args, cmdstanr_args)
+  )
+  cmdstanr_to_rstan <- c(
+    `parallel_chains` = "cores",
+    `iter_warmup` = "warmup",
+    `iter_sampling` = "iter"
+  )
+  rstan_to_cmdstanr <- c(
+    `cores` = "parallel_chains",
+    `warmup` = "iter_warmup",
+    `iter` = "iter_sampling"
+  )
+  from <- c(`cmdstanr` = "rstan", `rstan` = "cmdstanr")[backend]
+  to <- c(`cmdstanr` = "rstan", `rstan` = "cmdstanr")[from]
+  original_args <- ifelse_(
+    identical(backend, "rstan"),
+    which(dots_names %in% names(cmdstanr_to_rstan)),
+    which(dots_names %in% names(rstan_to_cmdstanr))
+  )
+  conversion <- ifelse_(
+    identical(backend, "rstan"),
+    cmdstanr_to_rstan,
+    rstan_to_cmdstanr
+  )
+  m <- match(dots_names, names(conversion), nomatch = 0L)
+  converted_args <- unname(conversion[m[m > 0L]])
+  duplicate_args <- converted_args[converted_args %in% dots_names]
+  stopifnot_(
+    length(duplicate_args) == 0L,
     c(
-      "pars", "chains", "iter", "warmup", "thin", "seed", "init", "check_data",
-      "sample_file", "diagnostic_file", "verbose", "algorithm", "control",
-      "include", "cores", "open_progress", "show_messages", "chain_id",
-      "init_r", "test_grad", "append_samples", "refresh", "save_warmup",
-      "enable_random_init"
-    ),
-    c(
-      "seed", "refresh", "init", "save_latent_dynamics", "output_dir",
-      "output_basename", "sig_figs", "chains", "parallel_chains", "chain_ids",
-      "threads_per_chain", "opencl_ids", "iter_warmup", "iter_sampling",
-      "save_warmup", "thin", "max_treedepth", "adapt_engaged", "adapt_delta",
-      "step_size", "metric", "metric_file", "inv_metric", "init_buffer",
-      "term_buffer", "window", "fixed_param", "show_messages", "diagnostics",
-      "cores", "num_cores", "num_chains", "num_warmup", "num_samples",
-      "validate_csv", "save_extra_diagnostics", "max_depth", "stepsize"
+      "Conflict in argument syntax conversion
+       from {.pkg {from}} to {.pkg {to}}.",
+      `x` = "Argument{?s} {.arg {duplicate_args}} {?has/have} been
+             multiply specified."
     )
   )
+  dots_names[original_args] <- converted_args
+  names(dots)[original_args] <- converted_args
+  if (identical(backend, "cmdstanr") ) {
+    valid_args <- !dots_names %in% cmdstanr_deprecated_args
+    deprecated_args <- dots_names[!valid_args]
+    if (verbose && any(deprecated_args)) {
+      warning_(
+        "{cli::qty(deprecated_args)}
+        Argument{?s} {.arg {deprecated_args}} passed to {.pkg {backend}}
+        sampling function {cli::qty(deprecated_args)}{?is/are} deprecated and
+        will be ignored."
+      )
+    }
+    dots_names <- dots_names[valid_args]
+    dots <- dots[valid_args]
+  }
   valid_args <- dots_names %in% args
   invalid_args <- dots_names[!valid_args]
-  dots <- dots[valid_args]
   if (verbose && any(!valid_args)) {
     warning_(
       "{cli::qty(invalid_args)}
-       Argument{?s} {.arg {invalid_args}} passed to {backend} sampling function
-       {cli::qty(invalid_args)}{?is/are} not recognized and will be ignored."
+      Argument{?s} {.arg {invalid_args}} passed to {.pkg {backend}} sampling
+      function {cli::qty(invalid_args)}{?is/are} not recognized and will be
+      ignored."
     )
   }
-  dots
+  dots[valid_args]
 }
 
 #' Count The Number of Random Effects in a `dynamiteformula`
@@ -610,7 +672,6 @@ count_random_effects <- function(dformula, data) {
   }
   M
 }
-
 
 #' Remove Redundant Parameters When Using `rstan`
 #'
@@ -748,7 +809,8 @@ formula.dynamitefit <- function(x, ...) {
       "responses = ", lfactor_resp, ", ",
       "noncentered_psi = ", lfactor_def$noncentered_psi, ", ",
       "nonzero_lambda = ", lfactor_nonzero, ", ",
-      "correlated = ", lfactor_def$correlated,
+      "correlated = ", lfactor_def$correlated, ", ",
+      "flip_sign = ", lfactor_def$flip_sign,
       ")"
     )
   )
@@ -810,10 +872,12 @@ parse_data <- function(dformula, data, group_var, time_var, verbose) {
   )
   if (is.factor(data[[time_var]])) {
     if (verbose) {
-      warning_(c(
-        "Time index variable {.arg {time_var}} is a {.cls factor}:",
-        `i` = "Converting the variable to {.cls integer} based on its levels."
-      ))
+      warning_(
+        c(
+          "Time index variable {.arg {time_var}} is a {.cls factor}:",
+          `i` = "Converting the variable to {.cls integer} based on its levels."
+        )
+      )
     }
     data.table::set(data, j = time_var, value = as.integer(data[[time_var]]))
   }
@@ -841,26 +905,6 @@ parse_data <- function(dformula, data, group_var, time_var, verbose) {
     data.table::set(data, j = j, value = val)
   }
   resp <- get_responses(dformula)
-  ordered_factor_resp <- vapply(
-    seq_along(resp),
-    function(i) {
-      is_categorical(dformula[[i]]$family) && is.ordered(data[[resp[i]]])
-    },
-    logical(1L)
-  )
-  if (any(ordered_factor_resp)) {
-    rof <- resp[ordered_factor_resp]
-    if (verbose) {
-      warning_(c(
-        "Response variable{?s} {.var {rof}} {?is/are} of class
-        {.cls ordered factor} whose channel{?s} {?is/are} categorical:",
-        `i` = "{.var {rof}} will be converted to {?an/} unordered factor{?s}."
-      ))
-    }
-    for (i in seq_along(rof)) {
-      class(data[[rof[i]]]) <- "factor"
-    }
-  }
   finite_cols <- vapply(
     data,
     function(x) all(is.finite(x) | is.na(x)),
@@ -890,8 +934,7 @@ parse_past <- function(dformula, data, group_var, time_var) {
       if (identical(typeof(cl), "language")) {
         past_eval <- try(eval(cl), silent = TRUE)
         if (inherits(past_eval, "try-error")) {
-          past_eval <- try(data[, eval(cl)], silent = TRUE)
-          # past_eval <- try(data[, cl, env = list(cl = cl)], silent = TRUE)
+          past_eval <- try(data[, cl, env = list(cl = cl)], silent = TRUE)
           stopifnot_(
             !inherits(past_eval, "try-error"),
             c(
@@ -973,7 +1016,8 @@ parse_components <- function(dformulas, data, group_var, time_var) {
       attr(dformulas$stoch, "lfactor")$P == 0L,
     "Cannot estimate latent factors using only one group."
   )
-  if (attr(dformulas$stoch, "lfactor")$has_lfactor) {
+
+   if (attr(dformulas$stoch, "lfactor")$has_lfactor) {
     nz <- which(attr(dformulas$stoch, "lfactor")$nonzero_lambda)
     if (length(nz) > 0L) {
       lresp <- attr(dformulas$stoch, "lfactor")$responses
@@ -985,21 +1029,21 @@ parse_components <- function(dformulas, data, group_var, time_var) {
           warning_(
             "The common time-varying intercept term of channel
             {.var {lresp[i]}} was removed as channel predictors
-            contain latent factor specified with {.arg nonzero_lambda}
-            as TRUE."
+            contain latent factor specified with {.arg nonzero_lambda} as TRUE."
           )
         }
-        ficpt <- dformulas$stoch[[j]]$has_fixed_intercept
-        ricpt <- dformulas$stoch[[j]]$has_random_intercept
-        if (ficpt && ricpt) {
-          dformulas$stoch[[j]]$has_fixed_intercept <- FALSE
-          warning_(
-            "The common time-invariant intercept term of channel
-            {.var {lresp[i]}} was removed as channel predictors
-            contain random intercept and latent factor specified
-            with {.arg nonzero_lambda} as TRUE."
-          )
-        }
+        # ficpt <- dformulas$stoch[[j]]$has_fixed_intercept
+        # ricpt <- dformulas$stoch[[j]]$has_random_intercept
+        # Latent factor should work even with these
+        # if (ficpt && ricpt) {
+        #   dformulas$stoch[[j]]$has_fixed_intercept <- FALSE
+        #   warning_(
+        #     "The common time-invariant intercept term of channel
+        #     {.var {lresp[i]}} was removed as channel predictors
+        #     contain random intercept and latent factor specified
+        #     with {.arg nonzero_lambda} as TRUE."
+        #   )
+        # }
       }
     }
   }
@@ -1107,6 +1151,7 @@ parse_lfactor <- function(lfactor_def, resp, families) {
     out$has_lfactor <- TRUE
     out$responses <- lfactor_def$responses
     out$noncentered_psi <- lfactor_def$noncentered_psi
+    out$flip_sign <- lfactor_def$flip_sign
     n_channels <- length(lfactor_def$responses)
     out$nonzero_lambda <- lfactor_def$nonzero_lambda
     stopifnot_(
@@ -1123,6 +1168,7 @@ parse_lfactor <- function(lfactor_def, resp, families) {
       has_lfactor = FALSE,
       responses = character(0L),
       noncentered_psi = FALSE,
+      flip_sign = TRUE,
       nonzero_lambda = logical(n_channels),
       correlated = FALSE,
       P = 0
@@ -1136,28 +1182,25 @@ parse_lfactor <- function(lfactor_def, resp, families) {
 #' @inheritParams dynamite
 #' @noRd
 fill_time <- function(data, group_var, time_var) {
+  # avoid NSE notes from R CMD check
+  group <- NULL
   time <- sort(unique(data[[time_var]]))
   stopifnot_(
     length(time) > 1L,
     "There must be at least two time points in the data."
   )
-  # time_duplicated <- data[,
-  #  any(duplicated(time_var)),
-  #  by = group_var,
-  #  env = list(time_var = time_var)
-  # ]$V1
   time_ivals <- diff(time)
   time_scale <- min(diff(time))
   full_time <- seq(time[1L], time[length(time)], by = time_scale)
-  data_groups <- as.integer(data[[group_var]])
-  group <- unique(data_groups)
-  n_group <- length(group)
+  n_group <- n_unique(data[[group_var]])
   time_duplicated <- logical(n_group)
   time_missing <- logical(n_group)
-  group_bounds <- c(0, data[, max(.I), by = group_var]$V1)
+  group_bounds <- c(
+    0L,
+    data[, base::max(.I), by = group, env = list(group = group_var)]$V1
+  )
   for (i in seq_len(n_group)) {
-    idx_group <- seq(group_bounds[i] + 1, group_bounds[i + 1])
-    #idx_group <- which(data_groups == group[i])
+    idx_group <- seq(group_bounds[i] + 1L, group_bounds[i + 1L])
     sub <- data[idx_group, ]
     time_duplicated[i] <- any(duplicated(sub[[time_var]]))
     time_missing[i] <- !identical(sub[[time_var]], full_time)
@@ -1175,11 +1218,6 @@ fill_time <- function(data, group_var, time_var) {
     all(time_ivals[!is.na(time_ivals)] %% time_scale == 0),
     "Observations must occur at regular time intervals."
   )
-  # time_missing <- data[,
-  #  !identical(time_var, full_time),
-  #  by = group_var,
-  #  env = list(time_var = time_var, full_time = full_time)
-  # ]$V1
   if (any(time_missing)) {
     data_names <- names(data)
     full_data_template <- data.table::as.data.table(

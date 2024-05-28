@@ -1,6 +1,6 @@
 #' Summary for a Dynamite Model Fit
 #'
-#' The `summary` method provides statistics of the posterior samples of the
+#' The `summary()` method provides statistics of the posterior samples of the
 #' model; this is an alias of [dynamite::as.data.frame.dynamitefit()] with
 #' `summary = TRUE`.
 #'
@@ -18,5 +18,13 @@
 #' )
 #'
 summary.dynamitefit <- function(object, ...) {
+  stopifnot_(
+    !missing(object),
+    "Argument {.arg object} is missing."
+  )
+  stopifnot_(
+    is.dynamitefit(object),
+    "Argument {.arg object} must be a {.cls dynamitefit} object."
+  )
   as.data.frame.dynamitefit(object, summary = TRUE, ...)
 }

@@ -11,6 +11,7 @@
 #'
 #'  * `alpha`\cr Intercept terms (time-invariant or time-varying).
 #'  * `beta`\cr Time-invariant regression coefficients.
+#'  * `cutpoint`\cr Cutpoints for ordinal regression.
 #'  * `delta`\cr Time-varying regression coefficients.
 #'  * `nu`\cr Group-level random effects.
 #'  * `lambda`\cr Factor loadings.
@@ -24,10 +25,10 @@
 #'     `rstan::extract(fit$stanfit, pars = "corr_matrix_nu")` if necessary.
 #'  * `sigma_lambda`\cr Standard deviations of the latent factor loadings
 #'    `lambda`.
-#'  * `tau_psi`\cr Standard deviations of the the spline coefficients of `psi`.
-#'  * `corr_psi`\cr Pairwise correlations of the latent factors.
-#'     Samples of the full correlation matrix can be extracted manually as
-#'     `rstan::extract(fit$stanfit, pars = "corr_matrix_psi")` if necessary.
+#'  * `corr_psi`\cr Pairwise correlations of the noise terms of the latent
+#'     factors. Samples of the full correlation matrix can be extracted
+#'     manually as `rstan::extract(fit$stanfit, pars = "corr_matrix_psi")` if
+#'     necessary.
 #'  * `sigma`\cr Standard deviations of gaussian responses.
 #'  * `corr`\cr Pairwise correlations of multivariate gaussian responses.
 #'  * `phi`\cr Describes various distributional parameters, such as:
@@ -37,26 +38,33 @@
 #'    - Degrees of freedom of the Student t-distribution.
 #'  * `omega`\cr Spline coefficients of the regression coefficients `delta`.
 #'  * `omega_alpha`\cr Spline coefficients of time-varying `alpha`.
-#'  * `omega_psi`\cr Spline coefficients of the latent factors `psi`.
+#'  * `omega_psi`\cr Spline coefficients of the latent factors `psi`. Note that
+#'     in case of `nonzero_lambda = FALSE`, mean of these are used to flip the
+#'     sign of `psi` to avoid multimodality due to sign-switching, but
+#'     `omega_psi` variables are not modified.
 #'
 #' @export
 #' @family output
 #' @param x \[`dynamitefit`]\cr The model fit object.
 #' @param row.names Ignored.
 #' @param optional Ignored.
+#' @param types \[`character()`]\cr Type(s) of the parameters for which the
+#'   samples should be extracted. See details of possible values. Default is
+#'   all values listed in details except spline coefficients `omega`.
+#'   This argument is mutually exclusive with `parameters`.
 #' @param parameters \[`character()`]\cr Parameter(s) for which the samples
 #'   should be extracted. Possible options can be found with function
-#'   `get_parameter_names()`. Default is all parameters of specific type for all
-#'   responses.
+#'   `get_parameter_names()`. Default is all parameters of specific type for
+#'   all responses. This argument is mutually exclusive with `types`.
 #' @param responses \[`character()`]\cr Response(s) for which the samples
 #'   should be extracted. Possible options are elements of
 #'   `unique(x$priors$response)`, and the default is this entire vector.
 #'    Ignored if the argument `parameters` is supplied.
-#' @param types \[`character()`]\cr Type(s) of the parameters for which the
-#'   samples should be extracted. See details of possible values. Default is
-#'   all values listed in details except spline coefficients `omega`,
 #'   `omega_alpha`, and `omega_psi`. See also [dynamite::get_parameter_types()].
-#'    Ignored if the argument `parameters` is supplied.
+#' @param times \[`double()`]\cr Time point(s) to keep. If `NULL`
+#'   (the default), all time points are kept.
+#' @param groups \[`character()`] Group name(s) to keep. If `NULL`
+#'   (the default), all groups are kept.
 #' @param summary \[`logical(1)`]\cr If `TRUE`, returns posterior
 #'   mean, standard deviation, and posterior quantiles (as defined by the
 #'   `probs` argument) for all parameters. If `FALSE` (default), returns the
@@ -103,21 +111,24 @@
 #' )
 #'
 as.data.frame.dynamitefit <- function(x, row.names = NULL, optional = FALSE,
-                                      parameters = NULL, responses = NULL,
-                                      types = NULL,
+                                      types = NULL, parameters = NULL,
+                                      responses = NULL,
+                                      times = NULL, groups = NULL,
                                       summary = FALSE, probs = c(0.05, 0.95),
                                       include_fixed = TRUE, ...) {
   out <- as.data.table.dynamitefit(
-    x,
+    x = x,
     keep.rownames = FALSE,
-    row.names,
-    optional,
-    parameters,
-    responses,
-    types,
-    summary,
-    probs,
-    include_fixed,
+    row.names = row.names,
+    optional = optional,
+    parameters = parameters,
+    responses = responses,
+    types = types,
+    times = times,
+    groups = groups,
+    summary = summary,
+    probs = probs,
+    include_fixed = include_fixed,
     ...
   )
   tibble::tibble(data.table::setDF(out))

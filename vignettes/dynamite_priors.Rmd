@@ -6,7 +6,6 @@ output:
     base_format: rmarkdown::html_vignette
 pkgdown:
   as_is: true
-bibliography: dynamite.bib
 vignette: >
   %\VignetteIndexEntry{Priors for dynamic multivariate panel models} 
   %\VignetteEngine{knitr::rmarkdown} 
@@ -72,7 +71,13 @@ The prior for the standard deviation parameter $\tau$ of the random walk prior o
 
 ## Correlation matrices
 
-The correlation matrix of the random effects uses a $\mbox{LKJ}(1)$ prior with the Cholesky parameterization, see Stan documentation of `lkj_cholesky_corr` for details^[https://mc-stan.org/docs/functions-reference/cholesky-lkj-correlation-distribution.html].
+The correlation matrix of the random effects and latent factors uses a $\mbox{LKJ}(1)$ prior with the Cholesky parameterization, see Stan documentation of `lkj_corr_cholesky` for details^[https://mc-stan.org/docs/functions-reference/cholesky-lkj-correlation-distribution.html]. The default corresponds to uniform distribution over valid correlation matrices.
+
+## Parameters related to latent factors
+
+When defining latent factor term with `nonzero_lambda = TRUE`, priors are set for $\zeta$ and $\kappa$, with defaults $\kappa \sim N(0, 1)$ and $\kappa \sim Beta(2, 2)$. These are used to define standard deviation $\sigma_\lambda$ of the loadings as $\sigma_\lambda = \kappa \zeta$, and $\tau_\psi = (1 - \kappa)\zeta$, the standard deviation of the random walk prior of $\psi_t$.
+
+In case where `nonzero_lambda = FALSE`, $\tau_\psi$ is fixed to one, and prior is set directly on $\sigma_\lambda $ as $N(0, 1)$. In both cases, prior on first $\psi_1 \sim N(0, 1)$.
 
 ## Family-specific parameters
 
@@ -80,7 +85,7 @@ For standard deviation parameter of gaussian and student's $t$ responses, we use
 
 # Defining priors of dynamite models
 
-While `dynamite()` can be used with the default prior choices, we recommend to check whether the defaults make sense for your particular problem and to odify them accordingly based on the domain knowledge. 
+While `dynamite()` can be used with the default prior choices, we recommend to check whether the defaults make sense for your particular problem and to codify them accordingly based on the domain knowledge. 
 
 Any univariate unbounded continuous distributions supported by Stan can be used as a prior for univariate model parameters (in case the parameter is constrained to be positive, the distribution is automatically truncated). Naturally, any univariate distribution bounded to the positive real line can be used as a prior for parameters constrained to be positive (e.g., a standard deviation parameter).
 See the Stan function reference at \url{https://mc-stan.org/users/documentation/} for possible distributions. For custom priors, you should first get the default priors with the `get_priors()` function, and then modify the `priors` column of the obtained data frame before supplying it to the `dynamite()` function:
@@ -93,7 +98,7 @@ p
 ```
 ```{r}
 p$prior[p$type == "sigma_nu"] <- "normal(0, 1)" # change prior for sigma_nu
-p$prior[p$parameter == "sigma_y"] <- "student_t(3, 0, 2)" #prior for sigma_y
+p$prior[p$parameter == "sigma_y"] <- "student_t(3, 0, 2)" # prior for sigma_y
 p
 ```
 ```{r, eval = FALSE}

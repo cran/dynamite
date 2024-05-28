@@ -88,20 +88,29 @@ create_functions <- function(idt, backend, cg, cvars, cgvars, mvars, threading) 
 create_functions_lines <- function(idt, backend, cvars, cgvars, threading) {
   family <- cgvars$family
   if (is_multivariate(family)) {
-    lines_wrap("functions", family, idt, backend,
-               list(cvars = cvars, cgvars = cgvars, threading = threading))
+    lines_wrap(
+      "functions",
+      family,
+      idt,
+      backend,
+      list(cvars = cvars, cgvars = cgvars, threading = threading)
+    )
   } else {
     if (is_categorical(family)) {
       cvars[[1L]]$threading <- threading
     } else {
       cvars[[1L]]$default <- lines_wrap(
-        "loglik", "default", idt, backend,
+        "loglik",
+        "default",
+        idt,
+        backend,
         c(cvars[[1L]], threading = threading)
       )
     }
     lines_wrap("functions", family, idt, backend, cvars[[1L]])
   }
 }
+
 #' @describeIn create_function Create The 'Data' Block of the Stan Model Code
 #' @noRd
 create_data <- function(idt, backend, cg, cvars, cgvars, mvars, threading) {
@@ -213,7 +222,7 @@ create_transformed_data <- function(idt, backend, cg, cvars, cgvars, mvars,
         "array[T] int seq1T = linspaced_int_array(T, 1, T);",
         paste_rows(
           "int seq1T[T];",
-          "for(t in 1:T) seq1T[t] = t;",
+          "for (t in 1:T) seq1T[t] = t;",
           .indent = idt(1),
           .parse = FALSE
         )
@@ -365,7 +374,40 @@ create_parameters_lines <- function(idt, backend, cvars, cgvars) {
           )
         }
       )
-    } else {
+    } else if (is_cumulative(family)) {
+      # the linear predictor without intercept
+      def_args <- cvars[[1L]]
+      has_varying_intercept <- def_args$has_varying_intercept
+      def_args$has_fixed_intercept <- FALSE
+      def_args$has_varying_intercept <- FALSE
+      par_main <- lines_wrap(
+        "parameters", "default", idt, backend, def_args
+      )
+      # time-varying intercepts only
+      def_args$has_random_intercept <- FALSE
+      def_args$has_fixed <- FALSE
+      def_args$has_varying <- FALSE
+      def_args$has_random <- FALSE
+      def_args$has_lfactor <- FALSE
+      def_args$has_varying_intercept <- has_varying_intercept
+      par_alpha <- ulapply(
+        seq_len(def_args$S - 1L),
+        function(s) {
+          def_args$ydim <- def_args$y
+          def_args$y <- paste0(def_args$y, "_", s)
+          def_args$pos_omega_alpha <- s > 1L
+          lines_wrap(
+            "parameters", "default", idt, backend, def_args
+          )
+        }
+      )
+      cvars[[1L]]$default <- paste_rows(
+        par_main,
+        par_alpha,
+        .parse = FALSE
+      )
+    }
+    else {
       cvars[[1L]]$default <- lines_wrap(
         "parameters", "default", idt, backend, cvars[[1L]]
       )
@@ -416,13 +458,17 @@ create_transformed_parameters <- function(idt, backend,
   }
   lfactor_text <- ""
   psis <- mvars$lfactor_def$responses
-  psis <- lapply(psis, function(x) {
-    y <- cvars[[x]]
-    ifelse_(
-    is_categorical(y$family),
-    y$categories[-y$S],
-    y$y)
-    })
+  psis <- lapply(
+    psis,
+    function(x) {
+      y <- cvars[[x]]
+      ifelse_(
+        is_categorical(y$family),
+        y$categories[-y$S],
+        y$y
+      )
+    }
+  )
   n_y <- lengths(psis)
   psis <- unlist(psis)
   P <- length(psis)
@@ -478,8 +524,8 @@ create_transformed_parameters <- function(idt, backend,
   paste_rows(
     "transformed parameters {",
     random_text,
-    lfactor_text,
     declarations,
+    lfactor_text,
     statements,
     "}",
     .parse = FALSE
@@ -524,6 +570,34 @@ create_transformed_parameters_lines <- function(idt, backend, cvars, cgvars) {
           )
         }
       )
+    } else if (is_cumulative(family)) {
+      # the linear predictor without intercept
+      has_varying_intercept <- cvars[[1L]]$has_varying_intercept
+      cvars[[1L]]$has_fixed_intercept <- FALSE
+      cvars[[1L]]$has_varying_intercept <- FALSE
+      tpar_main <- list(
+        lines_wrap(
+          "transformed_parameters", "default", idt, backend, cvars[[1L]]
+        )
+      )
+      # time-varying intercepts only
+      cvars[[1L]]$has_random_intercept <- FALSE
+      cvars[[1L]]$has_fixed <- FALSE
+      cvars[[1L]]$has_varying <- FALSE
+      cvars[[1L]]$has_random <- FALSE
+      cvars[[1L]]$has_lfactor <- FALSE
+      cvars[[1L]]$has_varying_intercept <- has_varying_intercept
+      tpar_alphas <- lapply(
+        seq_len(cvars[[1L]]$S - 1L),
+        function(s) {
+          cvars[[1L]]$ydim <- cvars[[1L]]$y
+          cvars[[1L]]$y <- paste0(cvars[[1L]]$y, "_", s)
+          lines_wrap(
+            "transformed_parameters", "default", idt, backend, cvars[[1L]]
+          )
+        }
+      )
+      cvars[[1L]]$default <- c(tpar_main, tpar_alphas)
     } else {
       cvars[[1L]]$default <- lines_wrap(
         "transformed_parameters", "default", idt, backend, cvars[[1L]]
@@ -538,11 +612,12 @@ create_transformed_parameters_lines <- function(idt, backend, cvars, cgvars) {
 create_model <- function(idt, backend, cg, cvars, cgvars, mvars, threading) {
   spline_def <- mvars$spline_def
   spline_text <- ""
-  if (!is.null(spline_def) && spline_def$shrinkage) {
-    xi_prior <- mvars$common_priors
-    xi_prior <- xi_prior[xi_prior$parameter == "xi", "prior"]
-    spline_text <- paste_rows("xi ~ {xi_prior};", .indent = idt(1))
-  }
+  # Shrinkage feature removed for now
+  # if (!is.null(spline_def) && spline_def$shrinkage) {
+  #   xi_prior <- mvars$common_priors
+  #   xi_prior <- xi_prior[xi_prior$parameter == "xi", "prior"]
+  #   spline_text <- paste_rows("xi ~ {xi_prior};", .indent = idt(1))
+  # }
   random_text <- ""
   if (mvars$random_def$M > 0L) {
     if (mvars$random_def$correlated) {
@@ -589,19 +664,24 @@ create_model <- function(idt, backend, cg, cvars, cgvars, mvars, threading) {
   }
   lfactor_text <- ""
   psis <- mvars$lfactor_def$responses
-  psis <- lapply(psis, function(x) {
-    y <- cvars[[x]]
-    ifelse_(
-      is_categorical(y$family),
-      y$categories[-y$S],
-      y$y)
-  })
+  psis <- lapply(
+    psis,
+    function(x) {
+      y <- cvars[[x]]
+      ifelse_(
+        is_categorical(y$family),
+        y$categories[-y$S],
+        y$y
+      )
+    }
+  )
   n_y <- lengths(psis)
   psis <- unlist(psis)
   P <- length(psis)
   if (P > 0L) {
     nz_lambda <- rep(mvars$lfactor_def$nonzero_lambda, times = n_y)
     omega1 <- paste0("omega_raw_psi_1_", psis, collapse = ", ")
+    tau_psi <- paste0("tau_psi_", psis)
     if (mvars$lfactor_def$correlated) {
       L_prior <- mvars$common_priors
       L_prior <- L_prior[L_prior$parameter == "L_lf", "prior"]
@@ -727,6 +807,7 @@ create_model_lines <- function(idt, backend, cvars, cgvars, mvars, threading) {
     )
   } else {
     cvars[[1L]]$backend <- backend
+    cvars[[1L]]$threading <- threading
     if (is_categorical(family)) {
       cvars[[1L]]$priors <- lapply(
         cvars[[1L]]$categories[-1L],
@@ -736,14 +817,46 @@ create_model_lines <- function(idt, backend, cvars, cgvars, mvars, threading) {
           do.call(prior_lines, c(cvars[[1L]], idt = idt))
         }
       )
-      cvars[[1L]]$backend <- backend
+    } else if (is_cumulative(family)) {
+      # time-varying intercepts only
+      if (cvars[[1L]]$has_varying_intercept) {
+        alpha_args <- c(cvars[[1L]], idt = idt)
+        alpha_args$has_fixed_intercept <- FALSE
+        alpha_args$has_lfactor <- FALSE
+        alpha_args$has_random_intercept <- FALSE
+        alpha_args$has_fixed <- FALSE
+        alpha_args$has_varying <- FALSE
+        alpha_args$has_random <- FALSE
+        alpha_args$has_lfactor <- FALSE
+        alpha_priors <- ulapply(
+          seq_len(cvars[[1L]]$S - 1L),
+          function(s) {
+            alpha_args$prior_distr$alpha_prior_distr <- alpha_args$prior_distr$alpha_prior_distr[[s]]
+            alpha_args$prior_distr$tau_alpha_prior_distr <- alpha_args$prior_distr$tau_alpha_prior_distr[[s]]
+            alpha_args$ydim <- cvars[[1L]]$y
+            alpha_args$y <- paste0(cvars[[1L]]$y, "_", s)
+            do.call(prior_lines, alpha_args)
+          }
+        )
+      } else {
+        alpha_priors <- NULL
+      }
+      # the linear predictor without intercept
+      def_args <- c(cvars[[1L]], idt = idt)
+      def_args$has_fixed_intercept <- FALSE
+      def_args$has_varying_intercept <- FALSE
+      def_args$threading <- threading
+      priors <- do.call(prior_lines, def_args)
+      cvars[[1L]]$priors <- c(alpha_priors, priors)
+      cvars[[1L]]$default <- lines_wrap(
+        "loglik", "default", idt, backend, def_args
+      )
     } else {
       cvars[[1L]]$priors <- do.call(prior_lines, c(cvars[[1L]], idt = idt))
       cvars[[1L]]$default <- lines_wrap(
-        "loglik", "default", idt, backend, c(cvars[[1L]], threading = threading)
+        "loglik", "default", idt, backend, cvars[[1L]]
       )
     }
-    cvars[[1L]]$threading <- threading
     lines_wrap("model", family, idt, backend, cvars[[1L]])
   }
 }
@@ -776,27 +889,44 @@ create_generated_quantities <- function(idt, backend,
   P <- mvars$lfactor_def$P
   if (P > 0L && mvars$lfactor_def$correlated) {
     # evaluate number of corrs to avoid Stan warning about integer division
-    tau <- paste0(
-      ifelse(
-        cvars$lfactor_def$nonzero_lambda,
-        paste0("tau_psi_", psis),
-        "1"
-      ),
-      collapse = ", "
-    )
-    gen_psi <- paste_rows(
-      paste0(
-        "matrix[P, P] corr_matrix_psi = ",
-        "multiply_lower_tri_self_transpose(L_lf);"
-      ),
-      "vector[{(P * (P - 1L)) %/% 2L}] corr_psi;",
-      "for (k in 1:P) {{",
-      "for (j in 1:(k - 1)) {{",
-      "corr_psi[choose(k - 1, 2) + j] = corr_matrix_psi[j, k];",
-      "}}",
-      "}}",
-      .indent = idt(c(1, 1, 1, 2, 3, 2, 1))
-    )
+    if (any(!mvars$lfactor_def$nonzero_lambda) && mvars$lfactor_def$flip_sign) {
+      signs <- paste0(
+        ifelse(
+          !mvars$lfactor_def$nonzero_lambda,
+          paste0("sign_omega_", psis),
+          "1"
+        ),
+        collapse = ", "
+      )
+      gen_psi <- paste_rows(
+        paste0(
+          "matrix[P, P] corr_matrix_psi = ",
+          "multiply_lower_tri_self_transpose(L_lf);"
+        ),
+        "row_vector[P] signs = [{signs}];",
+        "vector[{(P * (P - 1L)) %/% 2L}] corr_psi;",
+        "for (k in 1:P) {{",
+        "for (j in 1:(k - 1)) {{",
+        "corr_psi[choose(k - 1, 2) + j] = signs[j] * signs[k] * corr_matrix_psi[j, k];",
+        "}}",
+        "}}",
+        .indent = idt(c(1, 1, 1, 1, 2, 3, 2, 1))
+      )
+    } else {
+      gen_psi <- paste_rows(
+        paste0(
+          "matrix[P, P] corr_matrix_psi = ",
+          "multiply_lower_tri_self_transpose(L_lf);"
+        ),
+        "vector[{(P * (P - 1L)) %/% 2L}] corr_psi;",
+        "for (k in 1:P) {{",
+        "for (j in 1:(k - 1)) {{",
+        "corr_psi[choose(k - 1, 2) + j] = corr_matrix_psi[j, k];",
+        "}}",
+        "}}",
+        .indent = idt(c(1, 1, 1, 2, 3, 2, 1))
+      )
+    }
   }
   n_cg <- n_unique(cg)
   generated_quantities_text <- character(n_cg)

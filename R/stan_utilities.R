@@ -38,6 +38,7 @@ stan_array <- function(backend, type, name, arr_dims,
     )
   )
 }
+
 #' Create A Backward Compatible Stan Array for Function Arguments
 #' @noRd
 stan_array_arg <- function(backend, type, name, n_dims = 0, data = FALSE) {
@@ -53,6 +54,7 @@ stan_array_arg <- function(backend, type, name, n_dims = 0, data = FALSE) {
     paste0(data, type, "[",commas, "] ", name)
   )
 }
+
 #' Is Array Keyword Syntax Supported By Current Stan Version
 #'
 #' @param backend Either `"rstan"` or `"cmdstanr"`.
@@ -101,6 +103,7 @@ stan_supports_glm_likelihood <- function(family, backend, common_intercept) {
   ifelse_(
     is_categorical(family),
     stan_supports_categorical_logit_glm(backend, common_intercept),
-    family$name %in% c("bernoulli", "gaussian", "poisson", "negbin")
+    (family$name %in% c("bernoulli", "gaussian", "poisson", "negbin")) ||
+      (identical(family$name, "cumulative") && identical(family$link, "logit"))
   )
 }

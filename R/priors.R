@@ -71,19 +71,20 @@ extract_vectorizable_priors <- function(priors, y) {
 prepare_common_priors <- function(priors, M, shrinkage, P,
                                   correlated_nu, correlated_lf) {
   common_priors <- NULL
-  if (shrinkage) {
-    common_priors <- ifelse_(
-      is.null(priors),
-      data.frame(
-        parameter = "xi",
-        response = "",
-        prior = "normal(0, 1)",
-        type = "xi",
-        category = ""
-      ),
-      priors[priors$type == "xi", ]
-    )
-  }
+  # Shrinkage feature removed for now
+  #if (shrinkage) {
+  #  common_priors <- ifelse_(
+  #    is.null(priors),
+  #    data.frame(
+  #      parameter = "xi",
+  #      response = "",
+  #      prior = "std_normal()",
+  #      type = "xi",
+  #      category = ""
+  #    ),
+  #    priors[priors$type == "xi", ]
+  #  )
+  #}
   if (M > 1L && correlated_nu) {
     common_priors <- ifelse_(
       is.null(priors),
@@ -178,26 +179,34 @@ default_priors <- function(y, channel, mean_gamma, sd_gamma, mean_y, sd_y,
     prior_distributions$vectorized_sigma_nu <- FALSE
   }
   if (channel$has_lfactor) {
-    prior_distributions$sigma_lambda_prior_distr <- "normal(0, 1)"
-    priors$sigma_lambda <- data.frame(
-      parameter = paste0("sigma_lambda_", y, ycat),
-      response = y,
-      prior = prior_distributions$sigma_lambda_prior_distr,
-      type = "sigma_lambda",
-      category = category
-    )
     if (channel$nonzero_lambda) {
-      prior_distributions$tau_psi_prior_distr <-
-        paste0("normal(0, ", sd_y, ")")
-      priors$tau_psi <- data.frame(
-        parameter = paste0("tau_psi_", y, ycat),
+      prior_distributions$zeta_prior_distr <- "std_normal()"
+      priors$zeta <- data.frame(
+        parameter = paste0("zeta_", y, ycat),
         response = y,
-        prior = prior_distributions$tau_psi_prior_distr,
-        type = "tau_psi",
+        prior = prior_distributions$zeta_prior_distr,
+        type = "zeta",
+        category = category
+      )
+      prior_distributions$kappa_prior_distr <- "beta(2, 2)"
+      priors$kappa <- data.frame(
+        parameter = paste0("kappa_", y, ycat),
+        response = y,
+        prior = prior_distributions$kappa_prior_distr,
+        type = "kappa",
+        category = category
+      )
+    } else {
+      prior_distributions$sigma_lambda_prior_distr <- "std_normal()"
+      priors$sigma_lambda <- data.frame(
+        parameter = paste0("sigma_lambda_", y, ycat),
+        response = y,
+        prior = prior_distributions$sigma_lambda_prior_distr,
+        type = "sigma_lambda",
         category = category
       )
     }
-    prior_distributions$psi_prior_distr <- "normal(0, 1)"
+    prior_distributions$psi_prior_distr <- "std_normal()"
     priors$psi <- data.frame(
       parameter = paste0("psi_", y, ycat),
       response = y,
@@ -207,24 +216,40 @@ default_priors <- function(y, channel, mean_gamma, sd_gamma, mean_y, sd_y,
     )
   }
   if (channel$has_fixed_intercept || channel$has_varying_intercept) {
-    prior_distributions$alpha_prior_distr <-
-      paste0("normal(", mean_y, ", ", sd_y, ")")
+    if (is_cumulative(channel$family)) {
+      ycat_ <- paste0("_", channel$categories)
+      category_ <- channel$categories
+      prior_distributions$alpha_prior_distr <-
+        paste0("normal(", rep(mean_y, channel$S - 1), ", ", sd_y, ")")
+      names(prior_distributions$alpha_prior_distr) <- seq_len(channel$S - 1)
+    } else {
+      ycat_ <- ycat
+      category_ <- category
+      prior_distributions$alpha_prior_distr <-
+        paste0("normal(", mean_y, ", ", sd_y, ")")
+    }
     priors$alpha <- data.frame(
-      parameter = paste0("alpha_", y, ycat),
+      parameter = paste0("alpha_", y, ycat_),
       response = y,
       prior = prior_distributions$alpha_prior_distr,
       type = "alpha",
-      category = category
+      category = category_
     )
     if (channel$has_varying_intercept) {
-      prior_distributions$tau_alpha_prior_distr <-
-        paste0("normal(0, ", sd_y, ")")
+      if (is_cumulative(channel$family)) {
+        prior_distributions$tau_alpha_prior_distr <-
+          paste0("normal(", rep(0, channel$S - 1), ", ", sd_y, ")")
+        names(prior_distributions$tau_alpha_prior_distr) <- seq_len(channel$S - 1)
+      } else {
+        prior_distributions$tau_alpha_prior_distr <-
+          paste0("normal(0, ", sd_y, ")")
+      }
       priors$tau_alpha <- data.frame(
-        parameter = paste0("tau_alpha_", y, ycat),
+        parameter = paste0("tau_alpha_", y, ycat_),
         response = y,
         prior = prior_distributions$tau_alpha_prior_distr,
         type = "tau_alpha",
-        category = category
+        category = category_
       )
     }
   }
@@ -296,8 +321,8 @@ check_priors <- function(priors, defaults) {
   stopifnot_(
     all(!dupl),
     c(
-      "Argument {.var priors} contains multiple priors for same parameter.",
-      `x` = "{cli::qty(sum(dupl))} Found multiple prior{?s} for parameter{?s}
+      "Argument {.arg priors} contains multiple priors for the same parameter.",
+      `x` = "{cli::qty(sum(dupl))} Found multiple priors for parameter{?s}
              {.var {priors$parameter[dupl]}}."
     )
   )
@@ -306,7 +331,7 @@ check_priors <- function(priors, defaults) {
   stopifnot_(
     identical(not_found_len, 0L),
     c(
-      "Argument {.var priors} must contain all relevant parameters:",
+      "Argument {.arg priors} must contain all relevant parameters:",
       `x` = "{cli::qty(not_found_len)} Prior{?s} for parameter{?s}
              {.var {not_found}} {?is/are} not defined."
     )
@@ -316,7 +341,7 @@ check_priors <- function(priors, defaults) {
   stopifnot_(
     identical(extras_len, 0L),
     c(
-      "Argument {.var priors} must contain only relevant parameters:",
+      "Argument {.arg priors} must contain only relevant parameters:",
       `x` = "{cli::qty(extras)} Found {?a/} prior{?s} for parameter{?s}
              {.var {extras}} but the model does not contain such
              {?a/} parameter{?s}."
@@ -331,7 +356,8 @@ check_priors <- function(priors, defaults) {
     "gamma", "exponential", "lognormal", "chi_square", "inv_chi_square",
     "scaled_inv_chi_square", "inv_gamma", "weibull", "frechet", "rayleigh"
   )
-  all_dists <- c(unconstrained_dists, positive_dists)
+  bounded_dists <- "beta"
+  all_dists <- c(unconstrained_dists, positive_dists, bounded_dists)
   dists <- sub("\\(.*", "", priors$prior)
   unsupported <- unique(dists[!dists %in% all_dists])
   unsupported_len <- length(unsupported)
@@ -339,7 +365,7 @@ check_priors <- function(priors, defaults) {
     identical(unsupported_len, 0L),
     c(
       "{cli::qty(unsupported_len)} Found {?an/} unsupported prior
-       distribution{?s} in {.var priors}:",
+       distribution{?s} in {.arg priors}:",
       `x` = "Distribution{?s} {.var {unsupported}} {?is/are} not available."
     )
   )
@@ -353,8 +379,8 @@ check_priors <- function(priors, defaults) {
   stopifnot_(
     identical(unsupported_len, 0L),
     c(
-      "Priors for parameters alpha, beta, and delta should have unconstrained
-      support:",
+      "Priors for parameters {.val alpha}, {.val beta}, and {.val delta}
+      should have unconstrained support:",
       `x` = "{cli::qty(unsupported_len)} Found {?an/} unconstrained
              distribution{?s} {.var {dists}} for parameter{?s} {.var {pars}}."
     )

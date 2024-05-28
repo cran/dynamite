@@ -8,7 +8,7 @@ suppressPackageStartupMessages(library("ggplot2"))
 data.table::setDTthreads(1) # For CRAN
 
 ## ----categinit, eval=FALSE, echo=TRUE-----------------------------------------
-#  library(dynamite)
+#  library("dynamite")
 #  set.seed(1)
 #  n_id <- 100L
 #  n_time <- 20L

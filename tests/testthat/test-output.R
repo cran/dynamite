@@ -8,6 +8,8 @@ capture_all_output <- function(x) {
   )
 }
 
+# Printing ----------------------------------------------------------------
+
 test_that("dynamiteformula can be printed", {
   f <- obs(y ~ x + random(~1), family = "gaussian") +
     lags(k = c(1, 3)) +
@@ -23,6 +25,25 @@ test_that("dynamiteformula can be printed", {
     )
   )
 })
+
+test_that("fit object can be printed", {
+  expect_error(
+    capture_all_output(print(gaussian_example_fit)),
+    NA
+  )
+  expect_error(
+    capture_all_output(print(gaussian_example_fit, full_diagnostics = TRUE)),
+    NA
+  )
+  gaussian_example_fit_null <- gaussian_example_fit
+  gaussian_example_fit_null$stanfit <- NULL
+  expect_output(
+    print(gaussian_example_fit_null),
+    "No Stan model fit is available"
+  )
+})
+
+# Parameter extraction ----------------------------------------------------
 
 test_that("conversion to data.frame works", {
   expect_error(
@@ -56,50 +77,171 @@ test_that("coefficients can be extracted", {
   )
 })
 
-test_that("fit object can be printed", {
+test_that("extracting specific time points works", {
+  d <- as.data.table(gaussian_example_fit, types = "delta", times = 10:20)
+  expect_equal(unique(d$time), 10:20)
+})
+
+test_that("extracting specific groups", {
   expect_error(
-    capture_all_output(print(gaussian_example_fit)),
+    d <- as.data.table(gaussian_example_fit, types = "nu", groups = 1:10),
     NA
   )
-  gaussian_example_fit_null <- gaussian_example_fit
-  gaussian_example_fit_null$stanfit <- NULL
-  expect_output(
-    print(gaussian_example_fit_null),
-    "No Stan model fit is available"
-  )
+  expect_equal(unique(d$group), 1:10)
 })
+
+# Plotting ----------------------------------------------------------------
 
 test_that("default plot works", {
   expect_error(
-    plot(gaussian_example_fit, type = "beta"),
+    plot(gaussian_example_fit, types = "beta"),
+    NA
+  )
+})
+
+test_that("trace type plot works", {
+  expect_error(
+    plot(gaussian_example_fit, plot_type = "trace", types = "beta"),
+    NA
+  )
+})
+
+test_that("combining plots works", {
+  expect_error(
+    plot(gaussian_example_fit, type = c("alpha", "beta")),
+    NA
+  )
+})
+
+test_that("plotting specific parameters works", {
+  expect_error(
+    plot(gaussian_example_fit, parameters = "beta_y_z"),
+    NA
+  )
+})
+
+test_that("default formula plot works", {
+  f <- obs(y ~ x + lag(logz) + lag(y, 2) + lag(w), family = "gaussian") +
+    obs(w ~ lag(x) + z, family = "gaussian") +
+    aux(numeric(logz) ~ log(z))
+  expect_error(
+    plot(f),
+    NA
+  )
+  expect_error(
+    plot(f, show_auxiliary = FALSE),
+    NA
+  )
+  expect_error(
+    plot(f, show_covariates = TRUE),
+    NA
+  )
+  expect_error(
+    plot(f, show_auxiliary = FALSE, show_covariates = TRUE),
+    NA
+  )
+  multichannel_formula <- obs(g ~ lag(g) + lag(logp), family = "gaussian") +
+    obs(p ~ lag(g) + lag(logp) + lag(b), family = "poisson") +
+    obs(b ~ lag(b) * lag(logp) + lag(b) * lag(g), family = "bernoulli") +
+    aux(numeric(logp) ~ log(p + 1))
+  expect_error(
+    plot(multichannel_formula),
+    NA
+  )
+  expect_error(
+    plot(multichannel_formula, show_auxiliary = TRUE),
+    NA
+  )
+  expect_error(
+    plot(multichannel_formula, show_covariates = TRUE),
+    NA
+  )
+  expect_error(
+    plot(multichannel_formula, show_auxiliary = TRUE, show_covariates = TRUE),
+    NA
+  )
+})
+
+test_that("tikz formula plot works", {
+  f <- obs(y ~ x + lag(logz) + lag(y, 2) + lag(w), family = "gaussian") +
+    obs(w ~ lag(x) + z, family = "gaussian") +
+    aux(numeric(logz) ~ log(z))
+  expect_error(
+    plot(f, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(f, show_auxiliary = FALSE, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(f, show_covariates = TRUE, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(f, show_auxiliary = FALSE, show_covariates = TRUE, tikz = TRUE),
+    NA
+  )
+  multichannel_formula <- obs(g ~ lag(g) + lag(logp), family = "gaussian") +
+    obs(p ~ lag(g) + lag(logp) + lag(b), family = "poisson") +
+    obs(b ~ lag(b) * lag(logp) + lag(b) * lag(g), family = "bernoulli") +
+    aux(numeric(logp) ~ log(p + 1))
+  expect_error(
+    plot(multichannel_formula, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(multichannel_formula, show_auxiliary = TRUE, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(multichannel_formula, show_covariates = TRUE, tikz = TRUE),
+    NA
+  )
+  expect_error(
+    plot(
+      multichannel_formula,
+      show_auxiliary = TRUE,
+      show_covariates = TRUE,
+      tikz = TRUE
+    ),
     NA
   )
 })
 
 test_that("betas can be plotted", {
   expect_error(
-    plot_betas(gaussian_example_fit),
+    plot(gaussian_example_fit, types = "beta"),
     NA
   )
   expect_error(
-    plot_betas(categorical_example_fit),
+    plot(categorical_example_fit, types = "beta"),
     NA
   )
 })
 
 test_that("deltas can be plotted", {
   expect_error(
-    plot_deltas(gaussian_example_fit),
+    plot(gaussian_example_fit, types = "delta"),
     NA
   )
 })
 
 test_that("nus can be plotted", {
   expect_error(
-    plot_nus(gaussian_example_fit),
+    plot(gaussian_example_fit, types = "nu", n_params = 10),
     NA
   )
 })
+
+test_that("plotting with categories works", {
+  expect_error(
+    plot(categorical_example_fit),
+    NA
+  )
+})
+
+# Formula -----------------------------------------------------------------
 
 test_that("formula can be extracted", {
   expect_error(
@@ -131,7 +273,7 @@ test_that("formula can be extracted", {
   )
 })
 
-test_that("Formula extraction is correct", {
+test_that("formula extraction is correct", {
   expect_identical(
     deparse1(formula(gaussian_example_fit)),
     paste0(
@@ -206,6 +348,9 @@ test_that("Formula extraction is correct", {
   )
 })
 
+
+# Other methods -----------------------------------------------------------
+
 test_that("MCMC diagnostics can be computed", {
   expect_error(
     capture_all_output(mcmc_diagnostics(gaussian_example_fit)),
@@ -215,6 +360,19 @@ test_that("MCMC diagnostics can be computed", {
   gaussian_example_fit_null$stanfit <- NULL
   expect_output(
     mcmc_diagnostics(gaussian_example_fit_null),
+    "No Stan model fit is available\\."
+  )
+})
+
+test_that("HMC diagnostics can be computed", {
+  expect_error(
+    capture_all_output(hmc_diagnostics(gaussian_example_fit)),
+    NA
+  )
+  gaussian_example_fit_null <- gaussian_example_fit
+  gaussian_example_fit_null$stanfit <- NULL
+  expect_output(
+    hmc_diagnostics(gaussian_example_fit_null),
     "No Stan model fit is available\\."
   )
 })

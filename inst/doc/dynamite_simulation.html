@@ -36,7 +36,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -336,10 +336,10 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <div id="model-with-categorical-responses" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Model with categorical responses</h1>
 <p>As an illustration, the approach described in this vignette was used to generate the package data <code>categorical_example</code> as follows. First, we define the data for the first time index:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(dynamite)</span>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;dynamite&quot;</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> 100L</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> 20L</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> <span class="dv">100</span><span class="dt">L</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> <span class="dv">20</span><span class="dt">L</span></span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">sample</span>(<span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;a&quot;</span>, <span class="st">&quot;b&quot;</span>, <span class="st">&quot;c&quot;</span>)), <span class="at">size =</span> n_id, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">x =</span> <span class="fu">sample</span>(<span class="fu">factor</span>(<span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>)), <span class="at">size =</span> n_id, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
@@ -417,8 +417,8 @@ For <code>dynamiteformula</code> objects, this method should be provided the sam
 <p>As mentioned earlier, simulation from a model with time-varying effects is more challenging due to the inclusion of p-splines which means that we must also define initial values for the spline coefficients. We consider a single-channel model with a gaussian response that has a time-varying effect of a single covariate.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;dynamite&quot;</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> 8L</span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> 20L</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>n_id <span class="ot">&lt;-</span> <span class="dv">8</span><span class="dt">L</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> <span class="dv">20</span><span class="dt">L</span></span>
 <span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
 <span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  <span class="at">y =</span> <span class="fu">rnorm</span>(n_id, <span class="dv">1</span>, <span class="fl">0.5</span>),</span>
 <span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>  <span class="at">time =</span> <span class="dv">1</span>,</span>

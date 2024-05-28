@@ -8,9 +8,11 @@
   x,
   row.names = NULL,
   optional = FALSE,
+  types = NULL,
   parameters = NULL,
   responses = NULL,
-  types = NULL,
+  times = NULL,
+  groups = NULL,
   summary = FALSE,
   probs = c(0.05, 0.95),
   include_fixed = TRUE,
@@ -24,21 +26,27 @@
 
 \item{optional}{Ignored.}
 
+\item{types}{[\code{character()}]\cr Type(s) of the parameters for which the
+samples should be extracted. See details of possible values. Default is
+all values listed in details except spline coefficients \code{omega}.
+This argument is mutually exclusive with \code{parameters}.}
+
 \item{parameters}{[\code{character()}]\cr Parameter(s) for which the samples
 should be extracted. Possible options can be found with function
-\code{get_parameter_names()}. Default is all parameters of specific type for all
-responses.}
+\code{get_parameter_names()}. Default is all parameters of specific type for
+all responses. This argument is mutually exclusive with \code{types}.}
 
 \item{responses}{[\code{character()}]\cr Response(s) for which the samples
 should be extracted. Possible options are elements of
 \code{unique(x$priors$response)}, and the default is this entire vector.
-Ignored if the argument \code{parameters} is supplied.}
+Ignored if the argument \code{parameters} is supplied.
+\code{omega_alpha}, and \code{omega_psi}. See also \code{\link[=get_parameter_types]{get_parameter_types()}}.}
 
-\item{types}{[\code{character()}]\cr Type(s) of the parameters for which the
-samples should be extracted. See details of possible values. Default is
-all values listed in details except spline coefficients \code{omega},
-\code{omega_alpha}, and \code{omega_psi}. See also \code{\link[=get_parameter_types]{get_parameter_types()}}.
-Ignored if the argument \code{parameters} is supplied.}
+\item{times}{[\code{double()}]\cr Time point(s) to keep. If \code{NULL}
+(the default), all time points are kept.}
+
+\item{groups}{[\code{character()}] Group name(s) to keep. If \code{NULL}
+(the default), all groups are kept.}
 
 \item{summary}{[\code{logical(1)}]\cr If \code{TRUE}, returns posterior
 mean, standard deviation, and posterior quantiles (as defined by the
@@ -73,6 +81,7 @@ Potential values for the \code{types} argument are:
 \itemize{
 \item \code{alpha}\cr Intercept terms (time-invariant or time-varying).
 \item \code{beta}\cr Time-invariant regression coefficients.
+\item \code{cutpoint}\cr Cutpoints for ordinal regression.
 \item \code{delta}\cr Time-varying regression coefficients.
 \item \code{nu}\cr Group-level random effects.
 \item \code{lambda}\cr Factor loadings.
@@ -86,10 +95,10 @@ Samples of the full correlation matrix can be extracted manually as
 \code{rstan::extract(fit$stanfit, pars = "corr_matrix_nu")} if necessary.
 \item \code{sigma_lambda}\cr Standard deviations of the latent factor loadings
 \code{lambda}.
-\item \code{tau_psi}\cr Standard deviations of the the spline coefficients of \code{psi}.
-\item \code{corr_psi}\cr Pairwise correlations of the latent factors.
-Samples of the full correlation matrix can be extracted manually as
-\code{rstan::extract(fit$stanfit, pars = "corr_matrix_psi")} if necessary.
+\item \code{corr_psi}\cr Pairwise correlations of the noise terms of the latent
+factors. Samples of the full correlation matrix can be extracted
+manually as \code{rstan::extract(fit$stanfit, pars = "corr_matrix_psi")} if
+necessary.
 \item \code{sigma}\cr Standard deviations of gaussian responses.
 \item \code{corr}\cr Pairwise correlations of multivariate gaussian responses.
 \item \code{phi}\cr Describes various distributional parameters, such as:
@@ -101,7 +110,10 @@ Samples of the full correlation matrix can be extracted manually as
 }
 \item \code{omega}\cr Spline coefficients of the regression coefficients \code{delta}.
 \item \code{omega_alpha}\cr Spline coefficients of time-varying \code{alpha}.
-\item \code{omega_psi}\cr Spline coefficients of the latent factors \code{psi}.
+\item \code{omega_psi}\cr Spline coefficients of the latent factors \code{psi}. Note that
+in case of \code{nonzero_lambda = FALSE}, mean of these are used to flip the
+sign of \code{psi} to avoid multimodality due to sign-switching, but
+\code{omega_psi} variables are not modified.
 }
 }
 \examples{

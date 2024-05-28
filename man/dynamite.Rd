@@ -90,7 +90,7 @@ sensitive to the choice of \code{grainsize}, see Stan manual on reduce-sum for
 details.}
 
 \item{custom_stan_model}{[\code{character(1)}]\cr An optional character string
-that either contains a customized stan model code or a path to a \code{.stan}
+that either contains a customized Stan model code or a path to a \code{.stan}
 file that contains the code. Using this will override the generated model
 code. For expert users only.}
 
@@ -157,7 +157,7 @@ Information on the estimated dynamite model can be obtained via
 effective sample sizes, largest Rhat and summary statistics of the
 time- and group-invariant model parameters.
 
-The \code{summary} method provides statistics of the posterior samples of the
+The \code{summary()} method provides statistics of the posterior samples of the
 model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}} with
 \code{summary = TRUE}.
 }
@@ -211,6 +211,7 @@ from Panel Data with Dynamic Multivariate Panel Models. SocArxiv preprint,
 }
 \seealso{
 Model fitting
+\code{\link{dynamice}()},
 \code{\link{get_priors}()},
 \code{\link{update.dynamitefit}()}
 
