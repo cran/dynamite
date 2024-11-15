@@ -51,7 +51,7 @@ stan_array_arg <- function(backend, type, name, n_dims = 0, data = FALSE) {
   ifelse_(
     stan_supports_array_keyword(backend),
     paste0(data, "array[", commas, "] ", type, " ", name),
-    paste0(data, type, "[",commas, "] ", name)
+    paste0(data, type, "[", commas, "] ", name)
   )
 }
 
@@ -106,4 +106,290 @@ stan_supports_glm_likelihood <- function(family, backend, common_intercept) {
     (family$name %in% c("bernoulli", "gaussian", "poisson", "negbin")) ||
       (identical(family$name, "cumulative") && identical(family$link, "logit"))
   )
+}
+
+
+# Wrapper methods for backends --------------------------------------------
+
+#' Get `pars_oi` of a Stan model fit
+#'
+#' @param x A `stanfit` (from `rstan`) or a `CmdStanMCMC`
+#'   (from `cmdstanr`) object.
+#' @keywords internal
+#' @export
+get_pars_oi <- function(x) {
+  UseMethod("get_pars_oi")
+}
+
+#' Get the model code of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_model_code <- function(x) {
+  UseMethod("get_model_code")
+}
+
+#' Get the number of chains of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_nchains <- function(x) {
+  UseMethod("get_nchains")
+}
+
+#' Get the algorithm used in a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_algorithm <- function(x) {
+  UseMethod("get_algorithm")
+}
+
+#' Get the diagnostics of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_diagnostics <- function(x) {
+  UseMethod("get_diagnostics")
+}
+
+#' Get the maximum treedepth of chains of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_max_treedepth <- function(x) {
+  UseMethod("get_max_treedepth")
+}
+
+#' Get the number of draws of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_ndraws <- function(x) {
+  UseMethod("get_ndraws")
+}
+
+#' Get the draws of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @param pars A `character` vector of parameter names.
+#' @keywords internal
+#' @export
+get_draws <- function(x, pars) {
+  UseMethod("get_draws")
+}
+
+#' Get the elapsed time of a Stan model fit
+#'
+#' @inheritParams get_pars_oi
+#' @keywords internal
+#' @export
+get_elapsed_time <- function(x) {
+  UseMethod("get_elapsed_time")
+}
+
+#' @rdname get_pars_oi
+#' @keywords internal
+#' @export
+get_pars_oi.stanfit <- function(x) {
+  x@sim$pars_oi
+}
+
+#' @rdname get_pars_oi
+#' @keywords internal
+#' @export
+get_pars_oi.CmdStanMCMC <- function(x) {
+  x$metadata()$stan_variables
+}
+
+#' @rdname get_pars_oi
+#' @keywords internal
+#' @export
+get_pars_oi.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_pars_oi")
+}
+
+#' @rdname get_model_code
+#' @keywords internal
+#' @export
+get_model_code.stanfit <- function(x) {
+  x@stanmodel@model_code[1L]
+}
+
+#' @rdname get_model_code
+#' @keywords internal
+#' @export
+get_model_code.CmdStanMCMC <- function(x) {
+  paste0(x$code(), collapse = "\n")
+}
+
+#' @rdname get_model_code
+#' @keywords internal
+#' @export
+get_model_code.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_model_code")
+}
+
+#' @rdname get_nchains
+#' @keywords internal
+#' @export
+get_nchains.stanfit <- function(x) {
+  x@sim$chains
+}
+
+#' @rdname get_nchains
+#' @keywords internal
+#' @export
+get_nchains.CmdStanMCMC <- function(x) {
+  x$num_chains()
+}
+
+#' @rdname get_nchains
+#' @keywords internal
+#' @export
+get_nchains.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_nchains")
+}
+
+#' @rdname get_algorithm
+#' @keywords internal
+#' @export
+get_algorithm.stanfit <- function(x) {
+  x@stan_args[[1L]]$algorithm
+}
+
+#' @rdname get_algorithm
+#' @keywords internal
+#' @export
+get_algorithm.CmdStanMCMC <- function(x) {
+  x$metadata()$algorithm
+}
+
+#' @rdname get_algorithm
+#' @keywords internal
+#' @export
+get_algorithm.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_algorithm")
+}
+
+#' @rdname get_diagnostics
+#' @keywords internal
+#' @export
+get_diagnostics.stanfit <- function(x) {
+  list(
+    num_divergent = rstan::get_num_divergent(x),
+    num_max_treedepth = rstan::get_num_max_treedepth(x),
+    ebfmi = rstan::get_bfmi(x)
+  )
+}
+
+#' @rdname get_diagnostics
+#' @keywords internal
+#' @export
+get_diagnostics.CmdStanMCMC <- function(x) {
+  x$diagnostic_summary()
+}
+
+#' @rdname get_diagnostics
+#' @keywords internal
+#' @export
+get_diagnostics.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_diagnostics")
+}
+
+#' @rdname get_max_treedepth
+#' @keywords internal
+#' @export
+get_max_treedepth.stanfit <- function(x) {
+  x@stan_args[[1L]]$control$max_treedepth
+}
+
+#' @rdname get_max_treedepth
+#' @keywords internal
+#' @export
+get_max_treedepth.CmdStanMCMC <- function(x) {
+  x$metadata()$max_treedepth
+}
+
+#' @rdname get_max_treedepth
+#' @keywords internal
+#' @export
+get_max_treedepth.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_max_treedepth")
+}
+
+#' @rdname get_ndraws
+#' @keywords internal
+#' @export
+get_ndraws.stanfit <- function(x) {
+  (x@sim$n_save[1L] - x@sim$warmup2[1L]) * x@sim$chains
+}
+
+#' @rdname get_ndraws
+#' @keywords internal
+#' @export
+get_ndraws.CmdStanMCMC <- function(x) {
+  m <- x$metadata()
+  x$metadata()$iter_sampling * get_nchains(x)
+}
+
+#' @rdname get_ndraws
+#' @keywords internal
+#' @export
+get_ndraws.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_ndraws")
+}
+
+#' @rdname get_draws
+#' @keywords internal
+#' @export
+get_draws.stanfit <- function(x, pars) {
+  posterior::as_draws(
+    rstan::extract(
+      x,
+      pars = pars,
+      permuted = FALSE
+    )
+  )
+}
+
+#' @rdname get_draws
+#' @keywords internal
+#' @export
+get_draws.CmdStanMCMC <- function(x, pars) {
+  x$draws(variables = pars)
+}
+
+#' @rdname get_draws
+#' @keywords internal
+#' @export
+get_draws.CMdStanMCMC_CSV <- function(x, pars) {
+  NextMethod("get_draws")
+}
+
+#' @rdname get_elapsed_time
+#' @keywords internal
+#' @export
+get_elapsed_time.stanfit <- function(x) {
+  rstan::get_elapsed_time(x)
+}
+
+#' @rdname get_elapsed_time
+#' @keywords internal
+#' @export
+get_elapsed_time.CmdStanMCMC <- function(x) {
+  x$time()$chains
+}
+
+#' @rdname get_elapsed_time
+#' @keywords internal
+#' @export
+get_elapsed_time.CmdStanMCMC_CSV <- function(x) {
+  NextMethod("get_elapsed_time")
 }

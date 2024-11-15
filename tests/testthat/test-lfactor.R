@@ -40,11 +40,13 @@ test_that("nonidentifiable lfactor specification gives warning", {
     dynamite(
       obs(y1 ~ -1 + x, family = "poisson") +
         obs(y2 ~ x, family = "gaussian") +
-        lfactor(responses = c("y1", "y2"),
+        lfactor(
+          responses = c("y1", "y2"),
           nonzero_lambda = TRUE,
           correlated = TRUE,
           noncentered_psi = TRUE
-        ) + splines(30),
+        ) +
+        splines(30),
       data = d,
       time = "time",
       group = "id",
@@ -54,7 +56,7 @@ test_that("nonidentifiable lfactor specification gives warning", {
   expect_warning(
     dynamite(
       obs(y1 ~ x, family = "poisson") +
-        obs(y2 ~ -1+x + varying(~1) + random(~1), family = "gaussian") +
+        obs(y2 ~ -1 + x + varying(~1) + random(~1), family = "gaussian") +
         lfactor(
           responses = c("y1", "y2"),
           nonzero_lambda = TRUE,

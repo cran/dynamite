@@ -3,7 +3,7 @@
 \docType{data}
 \name{gaussian_example}
 \alias{gaussian_example}
-\title{Simulated Data of Gaussian Responses}
+\title{Simulated Data of a Gaussian Response}
 \format{
 A data frame with 3000 rows and 5 variables:
 \describe{
@@ -15,17 +15,17 @@ A data frame with 3000 rows and 5 variables:
 }
 }
 \source{
-The data was generated according to a script in
-\url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example.R}
+The data was generated via \code{gaussian_example.R} in
+\url{https://github.com/ropensci/dynamite/tree/main/data-raw/}
 }
 \usage{
 gaussian_example
 }
 \description{
-Simulated data containing gaussian response variables with two covariates.
-The dataset was generated from a model with time-varying effects of
-covariate x and the lagged value of the response variable, time-varying
-intercept, and time-invariant effect of covariate z. The time-varying
+Simulated data containing a Gaussian response variable \code{y} with two
+covariates. The dataset was generated from a model with time-varying effects
+of covariate \code{x} and the lagged value of the response variable, time-varying
+intercept, and time-invariant effect of covariate \code{z}. The time-varying
 coefficients vary according to a spline with 20 degrees of freedom.
 }
 \seealso{
@@ -33,7 +33,6 @@ Example models
 \code{\link{categorical_example}},
 \code{\link{categorical_example_fit}},
 \code{\link{gaussian_example_fit}},
-\code{\link{gaussian_simulation_fit}},
 \code{\link{multichannel_example}},
 \code{\link{multichannel_example_fit}}
 }

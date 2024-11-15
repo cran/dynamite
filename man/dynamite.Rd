@@ -61,8 +61,8 @@ definitions. See \code{\link[=get_priors]{get_priors()}} and 'Details'.}
 \item{backend}{[\code{character(1)}]\cr Defines the backend interface to Stan,
 should be  either \code{"rstan"} (the default) or \code{"cmdstanr"}. Note that
 \code{cmdstanr} needs to be installed separately as it is not on CRAN. It also
-needs the actual \code{CmdStan} software. See https://mc-stan.org/cmdstanr/ for
-details.}
+needs the actual \code{CmdStan} software. See \url{https://mc-stan.org/cmdstanr/}
+for details.}
 
 \item{verbose}{[\code{logical(1)}]\cr All warnings and messages are suppressed
 if set to \code{FALSE}. Defaults to \code{TRUE}. Setting this to \code{FALSE} will also
@@ -73,13 +73,16 @@ disable checks for perfect collinearity in the model matrix.}
 
 \item{stanc_options}{[\code{list()}]\cr This is the \code{stanc_options} argument
 passed to the compile method of a \code{CmdStanModel} object via
-\code{\link[cmdstanr:cmdstan_model]{cmdstanr::cmdstan_model()}} when \code{backend = "cmdstanr"}.
-Defaults to \code{list("O0")}. To enable level one compiler optimizations,
-use \code{list("O1")}.}
+\code{cmdstan_model()} when \code{backend = "cmdstanr"}. Defaults to \code{list("O0")}.
+To enable level one compiler optimizations, use \code{list("O1")}.
+See \url{https://mc-stan.org/cmdstanr/reference/cmdstan_model.html}
+for details.}
 
 \item{threads_per_chain}{[\code{integer(1)}]\cr A Positive integer defining the
 number of parallel threads to use within each chain. Default is \code{1}. See
-\code{\link[rstan:rstan_options]{rstan::rstan_options()}} and \code{\link[cmdstanr:model-method-sample]{cmdstanr::sample()}} for details.}
+\code{\link[rstan:rstan_options]{rstan::rstan_options()}} and
+\url{https://mc-stan.org/cmdstanr/reference/model-method-sample.html}
+for details.}
 
 \item{grainsize}{[\code{integer(1)}]\cr A positive integer defining the
 suggested size of the partial sums when using within-chain parallelization.
@@ -103,11 +106,13 @@ combined with \code{model_code = TRUE}, which adds the Stan model code to the
 return object.}
 
 \item{...}{For \code{dynamite()}, additional arguments to \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}} or
-\code{\link[cmdstanr:model-method-sample]{cmdstanr::sample()}}, such as \code{chains} and \code{cores} (\code{chains} and
-\code{parallel_chains} in \code{cmdstanr}). For \code{summary()}, additional arguments to
-\code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}}. For \code{print()}, further arguments
-to the print method for tibbles (see \link[tibble:formatting]{tibble::formatting}). Not used for
-\code{formula()}.}
+the \verb{$sample()} method of the \code{CmdStanModel} object
+(see \url{https://mc-stan.org/cmdstanr/reference/model-method-sample.html}),
+such as \code{chains} and \code{cores}
+(\code{chains} and \code{parallel_chains} in \code{cmdstanr}). For \code{summary()},
+additional arguments to \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}}. For \code{print()},
+further arguments to the print method for tibbles
+(see \link[tibble:formatting]{tibble::formatting}). Not used for \code{formula()}.}
 
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
 
@@ -133,6 +138,7 @@ construction and sampling.
 \item \code{priors}\cr Data frame containing the used priors.
 \item \code{backend}\cr Either \code{"rstan"} or \code{"cmdstanr"} indicating which
 package was used in sampling.
+\item \code{permutation}\cr Randomized permutation of the posterior draws.
 \item \code{call}\cr Original function call as an object of class \code{call}.
 }
 
@@ -152,10 +158,10 @@ see 'Details' and the package vignettes.
 
 The \code{formula} method returns the model definition as a quoted expression.
 
-Information on the estimated dynamite model can be obtained via
-\code{print} including the following: The model formula, the data, the smallest
-effective sample sizes, largest Rhat and summary statistics of the
-time- and group-invariant model parameters.
+Information on the estimated \code{dynamite} model can be obtained via
+\code{print()} including the following: The model formula, the data,
+the smallest effective sample sizes, largest Rhat and summary statistics of
+the time-invariant and group-invariant model parameters.
 
 The \code{summary()} method provides statistics of the posterior samples of the
 model; this is an alias of \code{\link[=as.data.frame.dynamitefit]{as.data.frame.dynamitefit()}} with
@@ -201,13 +207,14 @@ summary(gaussian_example_fit,
 
 }
 \references{
-Santtu Tikka and Jouni Helske (2023). \code{dynamite}: An \R Package for Dynamic
-Multivariate Panel Models. arXiv preprint,
-\url{https://arxiv.org/abs/2302.01607}.
+Santtu Tikka and Jouni Helske (2024). \pkg{dynamite}: An \R Package for
+Dynamic Multivariate Panel Models. arXiv preprint,
+\url{doi:10.48550/arXiv.2302.01607}.
 
 Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
-from Panel Data with Dynamic Multivariate Panel Models. SocArxiv preprint,
-\url{https://osf.io/preprints/socarxiv/mdwu5/}.
+from Panel Data with Dynamic Multivariate Panel Models.
+\emph{Advances in Life Course Research}, 60, 100617.
+\url{doi:10.1016/j.alcr.2024.100617}.
 }
 \seealso{
 Model fitting

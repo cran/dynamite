@@ -145,7 +145,6 @@ plot_dynamiteformula_tikz <- function(g) {
 plot_dynamiteformula_ggplot <- function(g, vertex_size, label_size) {
   # avoid NSE notes from R CMD check
   var_expr <- NULL
-  v <- colnames(g$A)
   layout <- g$layout
   edgelist <- g$edgelist
   layout$var_expr <- gsub("(.+)_\\{(.+)\\}", "\\1\\[\\2\\]", layout$var)
@@ -242,15 +241,14 @@ plot_dynamiteformula_ggplot <- function(g, vertex_size, label_size) {
 #'   specified by `n_params`. Option `"trace"` instead draws posterior
 #'   densities and traceplots of the parameters. Option `"dag"` instead plots
 #'   the directed acyclic graph of the model formula, see
-#'   [dynamite::plot.dynamiteformula()] for the arguments available for this
-#'   option.
+#'   [plot.dynamiteformula()] for the arguments available for this option.
 #' @param types \[`character(1)`]\cr Types of the parameter for which the plots
 #'   should be drawn. Possible options can be found with the function
-#'   [dynamite::get_parameter_types()]. Ignored if the argument `parameters`
+#'   [get_parameter_types()]. Ignored if the argument `parameters`
 #'   is supplied.
 #' @param parameters \[`charecter()`]\cr Parameter name(s) for which the plots
 #'   should be drawn. Possible options can be found with the function
-#'   [dynamite::get_parameter_names()]. The default is all parameters,
+#'   [get_parameter_names()]. The default is all parameters,
 #'   limited by `n_params`.
 #' @param responses \[`character()`]\cr Response(s) for which the plots should
 #'   be drawn. Possible options are `unique(x$priors$response)`. Default is
@@ -277,8 +275,8 @@ plot_dynamiteformula_ggplot <- function(g, vertex_size, label_size) {
 #'   parameters to plot. The defaults values are 20 for time-invariant
 #'   parameters and 3 for time-varying parameters. The default value is 5
 #'   for `plot_type == "trace"`.
-#' @param ... Arguments passed to [dynamite::plot.dynamiteformula()] when
-#'   using `plot_type = "dag"`.
+#' @param ... Arguments passed to [plot.dynamiteformula()] when using
+#'   `plot_type = "dag"`.
 #' @return A `ggplot` object.
 #' @srrstats {BS6.1, RE6.0, RE6.1, BS6.2, BS6.3, BS6.5} Implements the `plot()`
 #' method. Further plots can be easily constructed with the help of
@@ -476,7 +474,7 @@ plot_trace <- function(x, types, parameters, responses,
   )
 }
 
-#' Plot Time-invariant Parameters of a Dynamite Model
+#' Plot Time-invariant Parameters of a \pkg{dynamite} Model
 #'
 #' @inheritParams plot.dynamitefit
 #' @noRd
@@ -541,7 +539,7 @@ plot_fixed <- function(coefs, level, alpha, facet, scales, n_params) {
 }
 
 
-#' Plot Time-varying Parameters of a Dynamite Model
+#' Plot Time-varying Parameters of a \pkg{dynamite} Model
 #'
 #' @inheritParams plot.dynamitefit
 #' @noRd
@@ -551,14 +549,13 @@ plot_varying <- function(coefs, level, alpha, scales, n_params) {
     return(NULL)
   }
   coefs <- filter_params(coefs, n_params, 3)
-  n_coefs <- nrow(coefs)
   title_spec <- "time-varying parameters"
   if (n_unique(coefs$type) == 1L) {
     title_spec <- switch(
       coefs$type[1L],
       alpha = "time-varying intercepts",
-      cutpoint = "time-invariant cutpoints",
-      delta = "time-invariant regression coefficients",
+      cutpoint = "time-varying cutpoints",
+      delta = "time-varying regression coefficients",
       psi = "latent factors",
       "time-varying parameters"
     )

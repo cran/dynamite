@@ -3,13 +3,13 @@
 \docType{data}
 \name{gaussian_example_fit}
 \alias{gaussian_example_fit}
-\title{Model Fit for the Simulated Data of Gaussian Responses}
+\title{Model Fit for the Simulated Data of a Gaussian Response}
 \format{
 A \code{dynamitefit} object.
 }
 \source{
-The data was generated according to a script in
-\url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example_fit.R}
+The data was generated via \code{gaussian_example_fit.R} in
+\url{https://github.com/ropensci/dynamite/tree/main/data-raw/}
 }
 \usage{
 gaussian_example_fit
@@ -45,7 +45,6 @@ Example models
 \code{\link{categorical_example}},
 \code{\link{categorical_example_fit}},
 \code{\link{gaussian_example}},
-\code{\link{gaussian_simulation_fit}},
 \code{\link{multichannel_example}},
 \code{\link{multichannel_example_fit}}
 }

@@ -1,9 +1,9 @@
-#' Print a Summary of a Dynamite Model Fit Object
+#' Print a Summary of a \pkg{dynamite} Model Fit Object
 #'
-#' Information on the estimated dynamite model can be obtained via
-#'  `print` including the following: The model formula, the data, the smallest
-#' effective sample sizes, largest Rhat and summary statistics of the
-#' time- and group-invariant model parameters.
+#' Information on the estimated `dynamite` model can be obtained via
+#' `print()` including the following: The model formula, the data,
+#' the smallest effective sample sizes, largest Rhat and summary statistics of
+#' the time-invariant and group-invariant model parameters.
 #'
 #' @export
 #' @rdname dynamite
@@ -48,7 +48,7 @@ print.dynamitefit <- function(x, full_diagnostics = FALSE, ...) {
   )
   if (!is.null(x$stanfit)) {
     cat("\n")
-    mcmc_algorithm <- x$stanfit@stan_args[[1L]]$algorithm %in% c("NUTS", "hmc")
+    mcmc_algorithm <- get_algorithm(x$stanfit) %in% c("NUTS", "hmc")
     if (mcmc_algorithm) {
       hmc_diagnostics(x)
     }
@@ -70,20 +70,20 @@ print.dynamitefit <- function(x, full_diagnostics = FALSE, ...) {
     if (mcmc_algorithm) {
       min_ess <- which.min(sumr$ess_bulk)
       cat("\nSmallest bulk-ESS: ", round(sumr$ess_bulk[min_ess]), " (",
-          sumr$variable[min_ess], ")",
-          sep = ""
+        sumr$variable[min_ess], ")",
+        sep = ""
       )
       min_ess <- which.min(sumr$ess_tail)
       cat("\nSmallest tail-ESS: ", round(sumr$ess_tail[min_ess]), " (",
-          sumr$variable[min_ess], ")",
-          sep = ""
+        sumr$variable[min_ess], ")",
+        sep = ""
       )
       max_rhat <- which.max(sumr$rhat)
       cat("\nLargest Rhat: ", round(sumr$rhat[max_rhat], 3), " (",
-          sumr$variable[max_rhat], ")",
-          sep = ""
+        sumr$variable[max_rhat], ")",
+        sep = ""
       )
-      runtimes <- rstan::get_elapsed_time(x$stanfit)
+      runtimes <- get_elapsed_time(x$stanfit)
       if (nrow(runtimes) > 2L) {
         rs <- rowSums(runtimes)
         cat("\n\nElapsed time (seconds) for fastest and slowest chains:\n")

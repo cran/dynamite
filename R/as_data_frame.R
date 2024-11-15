@@ -15,6 +15,8 @@
 #'  * `delta`\cr Time-varying regression coefficients.
 #'  * `nu`\cr Group-level random effects.
 #'  * `lambda`\cr Factor loadings.
+#'  * `kappa`\cr Contribution of the latent factor loadings in the total
+#'    variation.
 #'  * `psi`\cr Latent factors.
 #'  * `tau`\cr Standard deviations of the spline coefficients of `delta`.
 #'  * `tau_alpha`\cr Standard deviations of the spline coefficients of
@@ -29,8 +31,8 @@
 #'     factors. Samples of the full correlation matrix can be extracted
 #'     manually as `rstan::extract(fit$stanfit, pars = "corr_matrix_psi")` if
 #'     necessary.
-#'  * `sigma`\cr Standard deviations of gaussian responses.
-#'  * `corr`\cr Pairwise correlations of multivariate gaussian responses.
+#'  * `sigma`\cr Standard deviations of Gaussian responses.
+#'  * `corr`\cr Pairwise correlations of multivariate Gaussian responses.
 #'  * `phi`\cr Describes various distributional parameters, such as:
 #'    - Dispersion parameter of the Negative Binomial distribution.
 #'    - Shape parameter of the Gamma distribution.
@@ -42,6 +44,8 @@
 #'     in case of `nonzero_lambda = FALSE`, mean of these are used to flip the
 #'     sign of `psi` to avoid multimodality due to sign-switching, but
 #'     `omega_psi` variables are not modified.
+#'  * `zeta`\cr Total variation of latent factors, i.e., the sum
+#'     of `sigma_lambda` and `tau_psi`.
 #'
 #' @export
 #' @family output
@@ -60,10 +64,10 @@
 #'   should be extracted. Possible options are elements of
 #'   `unique(x$priors$response)`, and the default is this entire vector.
 #'    Ignored if the argument `parameters` is supplied.
-#'   `omega_alpha`, and `omega_psi`. See also [dynamite::get_parameter_types()].
+#'   `omega_alpha`, and `omega_psi`. See also [get_parameter_types()].
 #' @param times \[`double()`]\cr Time point(s) to keep. If `NULL`
 #'   (the default), all time points are kept.
-#' @param groups \[`character()`] Group name(s) to keep. If `NULL`
+#' @param groups \[`character()`]\cr Group name(s) to keep. If `NULL`
 #'   (the default), all groups are kept.
 #' @param summary \[`logical(1)`]\cr If `TRUE`, returns posterior
 #'   mean, standard deviation, and posterior quantiles (as defined by the
@@ -78,7 +82,7 @@
 #' @param ... Ignored.
 #' @return A `tibble` containing either samples or summary statistics of the
 #'   model parameters in a long format. For a wide format, see
-#'   [dynamite::as_draws()].
+#'   [as_draws.dynamitefit()].
 #' @examples
 #' data.table::setDTthreads(1) # For CRAN
 #' as.data.frame(

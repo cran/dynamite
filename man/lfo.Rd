@@ -12,9 +12,9 @@ lfo(x, ...)
 \arguments{
 \item{x}{[\code{dynamitefit}]\cr The model fit object.}
 
-\item{...}{Additional arguments passed to \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}} or
-\code{\link[cmdstanr:model-method-sample]{cmdstanr::sample()}}, such as \code{chains} and \code{cores} (\code{parallel_chains} in
-\code{cmdstanr}).}
+\item{...}{Additional arguments passed to \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}} or the
+\verb{$sample()} method of the \code{CmdStanModel} object, such as \code{chains} and
+\code{cores} (\code{parallel_chains} in \code{cmdstanr}).}
 
 \item{L}{[\code{integer(1)}]\cr Positive integer defining how many time points
 should be used for the initial fit.}
@@ -45,7 +45,7 @@ models using Pareto smoothed importance sampling.
 For multichannel models, the log-likelihoods of all channels are combined.
 For models with groups, expected log predictive densities (ELPDs) are
 computed independently for each group, but the re-estimation of the model
-is triggered if pareto k values of any group exceeds the threshold.
+is triggered if Pareto k values of any group exceeds the threshold.
 }
 \examples{
 data.table::setDTthreads(1) # For CRAN

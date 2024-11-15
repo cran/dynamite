@@ -4,7 +4,7 @@
 #' Bayesian inference. The \pkg{dynamite} package supports a wide range of
 #' distributions and allows the user to flexibly customize the priors for the
 #' model parameters. The dynamite model is specified using standard \R formula
-#' syntax via [dynamite::dynamiteformula()]. For more information and examples,
+#' syntax via [dynamiteformula()]. For more information and examples,
 #' see 'Details' and the package vignettes.
 #'
 #' The best-case scalability of `dynamite` in terms of data size should be
@@ -17,7 +17,7 @@
 #' @family fitting
 #' @rdname dynamite
 #' @param dformula \[`dynamiteformula`]\cr The model formula.
-#'   See [dynamite::dynamiteformula()] and 'Details'.
+#'   See [dynamiteformula()] and 'Details'.
 #' @param data
 #'   \[`data.frame`, `tibble::tibble`, or `data.table::data.table`]\cr
 #'   The data that contains the variables in the model in long format.
@@ -38,12 +38,12 @@
 #'   group. In case of name conflicts with `data`, see the `group_var` element
 #'   of the return object to get the column name of the new variable.
 #' @param priors \[`data.frame`]\cr An optional data frame with prior
-#'   definitions. See [dynamite::get_priors()] and 'Details'.
+#'   definitions. See [get_priors()] and 'Details'.
 #' @param backend \[`character(1)`]\cr Defines the backend interface to Stan,
 #'   should be  either `"rstan"` (the default) or `"cmdstanr"`. Note that
 #'   `cmdstanr` needs to be installed separately as it is not on CRAN. It also
-#'   needs the actual `CmdStan` software. See https://mc-stan.org/cmdstanr/ for
-#'   details.
+#'   needs the actual `CmdStan` software. See <https://mc-stan.org/cmdstanr/>
+#'   for details.
 #' @param verbose \[`logical(1)`]\cr All warnings and messages are suppressed
 #'   if set to `FALSE`. Defaults to `TRUE`. Setting this to `FALSE` will also
 #'   disable checks for perfect collinearity in the model matrix.
@@ -51,12 +51,15 @@
 #'   [rstan::sampling()]. Defaults to `FALSE`.
 #' @param stanc_options \[`list()`]\cr This is the `stanc_options` argument
 #'   passed to the compile method of a `CmdStanModel` object via
-#'   [cmdstanr::cmdstan_model()] when `backend = "cmdstanr"`.
-#'   Defaults to `list("O0")`. To enable level one compiler optimizations,
-#'   use `list("O1")`.
+#'   `cmdstan_model()` when `backend = "cmdstanr"`. Defaults to `list("O0")`.
+#'   To enable level one compiler optimizations, use `list("O1")`.
+#'   See <https://mc-stan.org/cmdstanr/reference/cmdstan_model.html>
+#'   for details.
 #' @param threads_per_chain \[`integer(1)`]\cr A Positive integer defining the
 #'   number of parallel threads to use within each chain. Default is `1`. See
-#'   [rstan::rstan_options()] and [cmdstanr::sample()] for details.
+#'   [rstan::rstan_options()] and
+#'   <https://mc-stan.org/cmdstanr/reference/model-method-sample.html>
+#'   for details.
 #' @param grainsize \[`integer(1)`]\cr A positive integer defining the
 #'   suggested size of the partial sums when using within-chain parallelization.
 #'   Default is number of time points divided by `threads_per_chain`.
@@ -76,11 +79,13 @@
 #'   combined with `model_code = TRUE`, which adds the Stan model code to the
 #'   return object.
 #' @param ... For `dynamite()`, additional arguments to [rstan::sampling()] or
-#'   [cmdstanr::sample()], such as `chains` and `cores` (`chains` and
-#'   `parallel_chains` in `cmdstanr`). For `summary()`, additional arguments to
-#'   [dynamite::as.data.frame.dynamitefit()]. For `print()`, further arguments
-#'   to the print method for tibbles (see [tibble::formatting]). Not used for
-#'   `formula()`.
+#'   the `$sample()` method of the `CmdStanModel` object
+#'   (see <https://mc-stan.org/cmdstanr/reference/model-method-sample.html>),
+#'   such as `chains` and `cores`
+#'   (`chains` and `parallel_chains` in `cmdstanr`). For `summary()`,
+#'   additional arguments to [as.data.frame.dynamitefit()]. For `print()`,
+#'   further arguments to the print method for tibbles
+#'   (see [tibble::formatting]). Not used for `formula()`.
 #' @return `dynamite` returns a `dynamitefit` object which is a list containing
 #'   the following components:
 #'
@@ -95,6 +100,7 @@
 #'   * `priors`\cr Data frame containing the used priors.
 #'   * `backend`\cr Either `"rstan"` or `"cmdstanr"` indicating which
 #'     package was used in sampling.
+#'   * `permutation`\cr Randomized permutation of the posterior draws.
 #'   * `call`\cr Original function call as an object of class `call`.
 #'
 #' @srrstats {G2.9} Potential loss of information is reported by `dynamite`.
@@ -129,13 +135,14 @@
 #'   based on Stan, the  scalability of the package depends directly on the
 #'   scalability of Stan.
 #' @references
-#' Santtu Tikka and Jouni Helske (2023). `dynamite`: An \R Package for Dynamic
-#' Multivariate Panel Models. arXiv preprint,
-#' <https://arxiv.org/abs/2302.01607>.
+#' Santtu Tikka and Jouni Helske (2024). \pkg{dynamite}: An \R Package for
+#' Dynamic Multivariate Panel Models. arXiv preprint,
+#' <doi:10.48550/arXiv.2302.01607>.
 #'
 #' Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
-#' from Panel Data with Dynamic Multivariate Panel Models. SocArxiv preprint,
-#' <https://osf.io/preprints/socarxiv/mdwu5/>.
+#' from Panel Data with Dynamic Multivariate Panel Models.
+#' *Advances in Life Course Research*, 60, 100617.
+#' <doi:10.1016/j.alcr.2024.100617>.
 #' @examples
 #' data.table::setDTthreads(1) # For CRAN
 #' \donttest{
@@ -237,12 +244,7 @@ dynamite <- function(dformula, data, time, group = NULL,
   # copy so that get_data can still return the full stan_input via debug
   stan_input_out <- stan_input
   stan_input_out$sampling_vars <- NULL
-  n_draws <- ifelse_(
-    is.null(stanfit),
-    0L,
-    (stanfit@sim$n_save[1L] - stanfit@sim$warmup2[1L]) *
-      stanfit@sim$chains
-  )
+  n_draws <- ifelse_(is.null(stanfit), 0L, get_ndraws(stanfit))
   out <- structure(
     list(
       stanfit = stanfit,
@@ -326,7 +328,8 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
   )
   stopifnot_(
     checkmate::test_string(x = custom_stan_model, null.ok = TRUE),
-    "Argument {.arg custom_stan_model} must be a single {.cls character} string."
+    "Argument {.arg custom_stan_model}
+    must be a single {.cls character} string."
   )
   stopifnot_(
     !isTRUE(grepl("\\.stan$", custom_stan_model, perl = TRUE)) ||
@@ -494,11 +497,9 @@ dynamite_sampling <- function(sampling, backend, model_code, model,
         dots,
         threads_per_chain = onlyif(threads_per_chain > 1L, threads_per_chain)
       )
-      sampling_out <- with(e, {
+      out <- with(e, {
         do.call(model$sample, args)
       })
-      out <- rstan::read_stan_csv(sampling_out$output_files())
-      out@stanmodel <- methods::new("stanmodel", model_code = model_code)
     }
   }
   out
@@ -598,7 +599,7 @@ check_stan_args <- function(dots, verbose, backend) {
   )
   dots_names[original_args] <- converted_args
   names(dots)[original_args] <- converted_args
-  if (identical(backend, "cmdstanr") ) {
+  if (identical(backend, "cmdstanr")) {
     valid_args <- !dots_names %in% cmdstanr_deprecated_args
     deprecated_args <- dots_names[!valid_args]
     if (verbose && any(deprecated_args)) {
@@ -701,7 +702,7 @@ remove_redundant_parameters <- function(stan_input, backend,
   dots
 }
 
-#' Access the Model Formula of a Dynamite Model
+#' Access the Model Formula of a \pkg{dynamite} Model
 #'
 #' The `formula` method returns the model definition as a quoted expression.
 #'
@@ -904,7 +905,6 @@ parse_data <- function(dformula, data, group_var, time_var, verbose) {
     val <- do.call(paste0("as.", type), args = list(col))
     data.table::set(data, j = j, value = val)
   }
-  resp <- get_responses(dformula)
   finite_cols <- vapply(
     data,
     function(x) all(is.finite(x) | is.na(x)),
@@ -1017,7 +1017,7 @@ parse_components <- function(dformulas, data, group_var, time_var) {
     "Cannot estimate latent factors using only one group."
   )
 
-   if (attr(dformulas$stoch, "lfactor")$has_lfactor) {
+  if (attr(dformulas$stoch, "lfactor")$has_lfactor) {
     nz <- which(attr(dformulas$stoch, "lfactor")$nonzero_lambda)
     if (length(nz) > 0L) {
       lresp <- attr(dformulas$stoch, "lfactor")$responses

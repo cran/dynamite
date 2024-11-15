@@ -1,17 +1,18 @@
-#' The `dynamite` package.
+#' The \pkg{dynamite} Package
 #'
 #' @description Easy-to-use and efficient interface for Bayesian inference of
 #' complex panel data consisting of multiple individuals with multiple
-#' measurements over time. Supports several observational distributions,
-#' time-varying effects and realistic counterfactual predictions which take into
-#' account the dynamic structure of the model.
+#' measurements over time using dynamic multivariate panel models.
+#' Supports several observational distributions, time-varying effects and
+#' realistic counterfactual predictions which take into account the dynamic
+#' structure of the model.
 #'
 #' # See Also
 #'
 #' * The package vignettes
-#' * [dynamite::dynamiteformula()] for information on defining models.
-#' * [dynamite::dynamite()] for information on fitting models.
-#' * \url{https://github.com/ropensci/dynamite/issues/} to submit a bug report
+#' * [dynamiteformula()] for information on defining models.
+#' * [dynamite()] for information on fitting models.
+#' * <https://github.com/ropensci/dynamite/issues/> to submit a bug report
 #'   or a feature request.
 #'
 #' # Authors
@@ -47,17 +48,17 @@
 #'   recovered.
 "_PACKAGE"
 
-#' Simulated Data of Gaussian Responses
+#' Simulated Data of a Gaussian Response
 #'
-#' Simulated data containing gaussian response variables with two covariates.
-#' The dataset was generated from a model with time-varying effects of
-#' covariate x and the lagged value of the response variable, time-varying
-#' intercept, and time-invariant effect of covariate z. The time-varying
+#' Simulated data containing a Gaussian response variable `y` with two
+#' covariates. The dataset was generated from a model with time-varying effects
+#' of covariate `x` and the lagged value of the response variable, time-varying
+#' intercept, and time-invariant effect of covariate `z`. The time-varying
 #' coefficients vary according to a spline with 20 degrees of freedom.
 #'
 #' @family examples
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example.R}
+#' @source The data was generated via `gaussian_example.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A data frame with 3000 rows and 5 variables:
 #' \describe{
 #'  \item{y}{The response variable.}
@@ -68,7 +69,7 @@
 #' }
 "gaussian_example"
 
-#' Model Fit for the Simulated Data of Gaussian Responses
+#' Model Fit for the Simulated Data of a Gaussian Response
 #'
 #' A `dynamitefit` object obtained by running `dynamite` on the
 #' `gaussian_example` dataset as
@@ -95,34 +96,35 @@
 #' }
 #' Note the very small number of samples due to size restrictions on CRAN.
 #' @family examples
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_example_fit.R}
+#' @source The data was generated via `gaussian_example_fit.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A `dynamitefit` object.
 "gaussian_example_fit"
 
-#' Model Fit for the time-varying example in the `dynamite_simulation` Vignette
-#'
-#' A `dynamitefit` object obtained by running `dynamite` with the
-#' `"Fixed_param"` algorithm on the specified `inits` in the example.
-#' \preformatted{
-#' set.seed(1)
-#' library(dynamite)
-#' gaussian_simulation_fit <- dynamite(
-#'   dformula = f,
-#'   data = d,
-#'   time = "time",
-#'   group = "id",
-#'   chains = 1,
-#'   iter = 1,
-#'   algorithm = "Fixed_param",
-#'   init = list(init),
-#' )
-#' }
-#' @family examples
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/gaussian_simulation_fit.R}
-#' @format A `dynamitefit` object.
-"gaussian_simulation_fit"
+# #' Model Fit for the time-varying example in the `dynamite_simulation`
+# #' Vignette
+# #'
+# #' A `dynamitefit` object obtained by running `dynamite` with the
+# #' `"Fixed_param"` algorithm on the specified `inits` in the example.
+# #' \preformatted{
+# #' set.seed(1)
+# #' library(dynamite)
+# #' gaussian_simulation_fit <- dynamite(
+# #'   dformula = f,
+# #'   data = d,
+# #'   time = "time",
+# #'   group = "id",
+# #'   chains = 1,
+# #'   iter = 1,
+# #'   algorithm = "Fixed_param",
+# #'   init = list(init),
+# #' )
+# #' }
+# #' @family examples
+# #' @source The data was generated via to `gaussian_simulation_fit.R` in
+# #' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
+# #' @format A `dynamitefit` object.
+# "gaussian_simulation_fit"
 
 #' Simulated Multivariate Panel Data
 #'
@@ -130,8 +132,8 @@
 #' response variables of different distributions.
 #'
 #' @family examples
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/multichannel_example.R}
+#' @source The data was generated via `multichannel_example.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A data frame with 3000 rows and 5 variables:
 #' \describe{
 #'  \item{id}{Variable defining individuals (1 to 50).}
@@ -170,8 +172,8 @@
 #' }
 #' Note the small number of samples due to size restrictions on CRAN.
 #' @family examples
-#' @source Script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/multichannel_example_fit.R}
+#' @source THe data was generated via `multichannel_example_fit.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A `dynamitefit` object.
 "multichannel_example_fit"
 
@@ -181,8 +183,8 @@
 #' response variables.
 #'
 #' @family examples
-#' @source The data was generated according to a script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/categorical_example.R}
+#' @source The data was generated via `categorical_example.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A data frame with 2000 rows and 5 variables:
 #' \describe{
 #'  \item{id}{Variable defining individuals (1 to 100).}
@@ -215,8 +217,8 @@
 #' }
 #' Note the small number of samples due to size restrictions on CRAN.
 #' @family examples
-#' @source Script in
-#' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/categorical_example_fit.R}
+#' @source The data was generated via `categorical_example_fit.R` in
+#' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 #' @format A `dynamitefit` object.
 "categorical_example_fit"
 
@@ -226,13 +228,14 @@
 # #' trajectories are defined by a latent factor and random intercept terms.
 # #'
 # #' @family examples
-# #' @source The data was generated according to a script in
-# #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example.R}
+# #' @source The data was generated via `latent_factor_example.R` in
+# #' <https://github.com/ropensci/dynamite/blob/main/data-raw/>
 # #' @format A data frame with 2000 rows and 3 variables:
 # #' \describe{
 # #'  \item{y}{A continuos variable.}
 # #'  \item{id}{Variable defining individuals (1 to 100).}
-# #'  \item{time}{Variable defining the time point of the measurement (1 to 20).}
+# #'  \item{time}{Variable defining the time point of the measurement
+# #'  (1 to 20).}
 # #' }
 # "latent_factor_example"
 
@@ -262,7 +265,7 @@
 # #' }
 # #' Note the very small number of samples due to size restrictions on CRAN.
 # #' @family examples
-# #' @source Script in
-# #' \url{https://github.com/ropensci/dynamite/blob/main/data-raw/latent_factor_example_fit.R}
+# #' @source The data was generated via `latent_factor_example_fit.R` in
+# #' <https://github.com/ropensci/dynamite/tree/main/data-raw/>
 # #' @format A `dynamitefit` object.
 # "latent_factor_example_fit"

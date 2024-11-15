@@ -1,3 +1,19 @@
+# dynamite 1.5.5
+
+  * The package vignettes are now prerendered as some of them took a long time to build.
+  * The vignette builder has been switched to `quarto`.
+  * The package no longer depends on `prder`, `pryr`, and `rmarkdown`.
+
+# dynamite 1.5.4
+
+  * Obtaining the model parameter dimensions via `get_parameter_dims()` no longer requires a compiled Stan model. This leads to a significant performance improvement when applied to `dynamiteformula` objects.
+  * Model fitting using `cmdstanr` backend no longer relies on `rstan::read_stan_csv()` to construct the fit object. Instead, the resulting `CmdStanMCMC` object is used directly. This should provide a substantial performance improvement in some instances. For `dynamice()`, samples from different imputed datasets are combined using `cmdstanr::as_cmdstan_fit()` instead.
+
+# dynamite 1.5.3
+
+  * Restored and updated the main package vignette. The vignette now also contains a real data example and information on multiple imputation.
+  * The package data `gaussian_simulation_fit` has been removed to accommodate CRAN package size requirements. The code to generate the data is still available in the `data_raw` directory.
+
 # dynamite 1.5.2
 
   * The main package vignette has been temporarily removed as it contained out-of-date information. Please see the arXiv preprint for up-to-date information instead: https://arxiv.org/abs/2302.01607

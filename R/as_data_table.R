@@ -1,7 +1,7 @@
 #' Extract Samples From a `dynamitefit` Object as a Data Table
 #'
 #' Provides a `data.table` representation of the posterior samples of the model
-#' parameters. See [dynamite::as.data.frame.dynamitefit()] for details.
+#' parameters. See [as.data.frame.dynamitefit()] for details.
 #'
 #' @export
 #' @export as.data.table
@@ -147,19 +147,13 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
       ""
     )
     if (type %in% c("xi", "corr_nu", "corr_psi")) {
-      draws <- rstan::extract(
-        x$stanfit,
-        pars = type,
-        permuted = FALSE
-      )
+      draws <- get_draws(x$stanfit, pars = type)
     } else {
-      draws <- rstan::extract(
+      draws <- get_draws(
         x$stanfit,
-        pars = paste0(type, "_", response, ycat),
-        permuted = FALSE
+        pars = paste0(type, "_", response, ycat)
       )
     }
-    channel <- get_channel(x, response)
     idx <- which(names(x$stan$responses) %in% response)
     resps <- ifelse_(
       identical(length(idx), 0L),
@@ -270,7 +264,7 @@ as.data.table.dynamitefit <- function(x, keep.rownames = FALSE,
     any(
       grepl(
         paste0("^", y["parameter"], "$"),
-        x$stanfit@sim$pars_oi
+        get_pars_oi(x$stanfit)
       )
     )
   })
@@ -431,7 +425,6 @@ as_data_table_nu <- function(x, draws, n_draws, response, category, ...) {
     "nu_", response, "_",
     c(icpt, names(get_channel(x, response)$J_random))
   )
-  n_vars <- length(var_names)
   groups <- sort(unique(x$data[[x$group_var]]))
   n_group <- length(groups)
   data.table::data.table(
@@ -482,7 +475,6 @@ as_data_table_beta <- function(x, draws, n_draws, response, category, ...) {
     "beta_", response, "_",
     names(get_channel(x, response)$J_fixed)
   )
-  n_vars <- length(var_names)
   data.table::data.table(
     parameter = rep(var_names, each = n_draws),
     value = c(draws),
@@ -540,7 +532,6 @@ as_data_table_tau <- function(x, draws, n_draws, response, category, ...) {
 #' @describeIn as_data_table_default Data Table for a "omega" Parameter
 #' @noRd
 as_data_table_omega <- function(x, draws, n_draws, response, category, ...) {
-  n_cat <- length(category)
   D <- x$stan$model_vars$D
   var_names <- paste0(
     "omega_", response, "_",
@@ -569,8 +560,8 @@ as_data_table_omega <- function(x, draws, n_draws, response, category, ...) {
 
 #' @describeIn as_data_table_default Data Table for a "omega_alpha" Parameter
 #' @noRd
-as_data_table_omega_alpha <-function(x, draws, n_draws, response,
-  category, ...) {
+as_data_table_omega_alpha <- function(x, draws, n_draws, response,
+                                      category, ...) {
   D <- x$stan$model_vars$D
   data.table::data.table(
     parameter = rep(
@@ -626,7 +617,6 @@ as_data_table_phi <- function(draws, response, ...) {
 #' @describeIn as_data_table_default Data Table for a "lambda" Parameter
 #' @noRd
 as_data_table_lambda <- function(x, draws, n_draws, response, ...) {
-  n_group <- dim(draws)[3L]
   data.table::data.table(
     parameter = paste0("lambda_", response),
     value = c(draws),
@@ -639,21 +629,25 @@ as_data_table_lambda <- function(x, draws, n_draws, response, ...) {
 as_data_table_sigma_lambda <- function(draws, response, ...) {
   as_data_table_default("sigma_lambda", draws, response)
 }
+
 #' @describeIn as_data_table_default Data Table for a "tau_psi" Parameter
 #' @noRd
 as_data_table_tau_psi <- function(draws, response, ...) {
   as_data_table_default("tau_psi", draws, response)
 }
+
 #' @describeIn as_data_table_default Data Table for a "kappa" Parameter
 #' @noRd
 as_data_table_kappa <- function(draws, response, ...) {
   as_data_table_default("kappa", draws, response)
 }
+
 #' @describeIn as_data_table_default Data Table for a "zeta" Parameter
 #' @noRd
 as_data_table_zeta <- function(draws, response, ...) {
   as_data_table_default("zeta", draws, response)
 }
+
 #' @describeIn as_data_table_default Data Table for a "psi" Parameter
 #' @noRd
 as_data_table_psi <- function(x, draws, n_draws, response,
@@ -718,7 +712,7 @@ as_data_table_corr <- function(x, draws, n_draws, resps, ...) {
 #' @describeIn as_data_table_default Data Table for a "cutpoint" Parameter
 #' @noRd
 as_data_table_cutpoint <- function(x, draws, response,
-                                    n_draws, include_fixed, ...) {
+                                   n_draws, include_fixed, ...) {
   channel <- get_channel(x, response)
   S <- channel$S
   fixed <- x$stan$fixed

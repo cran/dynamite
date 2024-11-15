@@ -8,8 +8,8 @@
 A \code{dynamitefit} object.
 }
 \source{
-Script in
-\url{https://github.com/ropensci/dynamite/blob/main/data-raw/categorical_example_fit.R}
+The data was generated via \code{categorical_example_fit.R} in
+\url{https://github.com/ropensci/dynamite/tree/main/data-raw/}
 }
 \usage{
 categorical_example_fit
@@ -40,7 +40,6 @@ Example models
 \code{\link{categorical_example}},
 \code{\link{gaussian_example}},
 \code{\link{gaussian_example_fit}},
-\code{\link{gaussian_simulation_fit}},
 \code{\link{multichannel_example}},
 \code{\link{multichannel_example_fit}}
 }

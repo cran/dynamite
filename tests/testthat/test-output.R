@@ -289,7 +289,8 @@ test_that("formula extraction is correct", {
     paste0(
       "obs(g ~ lag(g) + lag(logp), family = \"gaussian\") + ",
       "obs(p ~ lag(g) + lag(logp) + lag(b), family = \"poisson\") + ",
-      "obs(b ~ lag(b) * lag(logp) + lag(b) * lag(g), family = \"bernoulli\") + ",
+      "obs(b ~ lag(b) * lag(logp) + lag(b) * lag(g), ",
+      "family = \"bernoulli\") + ",
       "aux(numeric(logp) ~ log(p + 1))"
     )
   )
@@ -320,7 +321,8 @@ test_that("formula extraction is correct", {
     deparse1(formula(fit)),
     paste0(
       "obs(z ~ w1, family = \"gaussian\") + ",
-      "obs(c(w1, w2, w3) ~ 1 | y | varying(~-1 + x), family = \"mvgaussian\") + ",
+      "obs(c(w1, w2, w3) ~ 1 | y | varying(~-1 + x), ",
+      "family = \"mvgaussian\") + ",
       "lags(k = 1, type = \"varying\") + ",
       "splines(df = NULL, degree = 3, lb_tau = c(0, 0, 0, 0), ",
       "noncentered = c(FALSE, FALSE, FALSE, FALSE), override = FALSE)"
@@ -381,7 +383,7 @@ test_that("gets can be got", {
   expect_error(
     get_code(
       obs(y ~ -1 + z + varying(~ x + lag(y)) +
-        random(~1), family = "gaussian") + random_spec() + splines(df = 20),
+            random(~1), family = "gaussian") + random_spec() + splines(df = 20),
       gaussian_example, time =  "time", group = "id"
     ),
     NA
@@ -415,9 +417,20 @@ test_that("gets can be got", {
   )
   expect_equal(
     get_parameter_names(categorical_example_fit),
-    c("alpha_x", "beta_x_z", "beta_x_x_lag1B", "beta_x_x_lag1C",
-      "beta_x_y_lag1b", "beta_x_y_lag1c", "alpha_y", "beta_y_z",
-      "beta_y_x_lag1B", "beta_y_x_lag1C", "beta_y_y_lag1b", "beta_y_y_lag1c")
+    c(
+      "alpha_x",
+      "beta_x_z",
+      "beta_x_x_lag1B",
+      "beta_x_x_lag1C",
+      "beta_x_y_lag1b",
+      "beta_x_y_lag1c",
+      "alpha_y",
+      "beta_y_z",
+      "beta_y_x_lag1B",
+      "beta_y_x_lag1C",
+      "beta_y_y_lag1b",
+      "beta_y_y_lag1c"
+    )
   )
   expect_equal(
     get_parameter_dims(categorical_example_fit),
@@ -431,6 +444,20 @@ test_that("gets can be got", {
       beta_y_c = 5L,
       a_y_c = 1L
     )
+  )
+  stanfit_dims <- gaussian_example_fit$stanfit@par_dims
+  stanfit_dims[lengths(stanfit_dims) == 0] <- 1L
+  gaussian_dims <- get_parameter_dims(gaussian_example_fit)
+  stanfit_dims <- stanfit_dims[names(gaussian_dims)]
+  expect_equal(gaussian_dims, stanfit_dims)
+  expect_equal(
+    get_parameter_dims(
+      obs(y ~ -1 + z + varying(~ x + lag(y)) + random(~1),
+          family = "gaussian"
+      ) + random_spec() + splines(df = 20),
+      gaussian_example, time = "time", group = "id"
+    ),
+    gaussian_dims
   )
 })
 

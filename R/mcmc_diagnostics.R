@@ -1,4 +1,4 @@
-#' Diagnostic Values of a Dynamite Model
+#' Diagnostic Values of a \pkg{dynamite} Model
 #'
 #' Prints HMC diagnostics and lists parameters with smallest effective sample
 #' sizes and largest Rhat values. See [hmc_diagnostics()] and
@@ -42,7 +42,7 @@ mcmc_diagnostics.dynamitefit <- function(x, n = 3L, ...) {
   if (is.null(x$stanfit)) {
     cat("No Stan model fit is available.")
   } else {
-    algorithm <- x$stanfit@stan_args[[1L]]$algorithm
+    algorithm <- get_algorithm(x$stanfit)
     stopifnot_(
       algorithm %in% c("NUTS", "hmc"),
       "MCMC diagnostics are only meaningful for samples from MCMC.
@@ -73,7 +73,7 @@ mcmc_diagnostics.dynamitefit <- function(x, n = 3L, ...) {
   invisible(x)
 }
 
-#' HMC Diagnostics for a Dynamite Model
+#' HMC Diagnostics for a \pkg{dynamite} Model
 #'
 #' Prints the divergences, saturated treedepths, and low E-BFMI warnings.
 #'
@@ -104,17 +104,18 @@ hmc_diagnostics.dynamitefit <- function(x, ...) {
   if (is.null(x$stanfit)) {
     cat("No Stan model fit is available.")
   } else {
-    algorithm <- x$stanfit@stan_args[[1L]]$algorithm
+    algorithm <- get_algorithm(x$stanfit)
     stopifnot_(
       algorithm %in% c("NUTS", "hmc"),
       "MCMC diagnostics are only meaningful for samples from MCMC.
       Model was estimated using the ", algorithm, "algorithm."
     )
     n_draws <- ndraws(x)
-    n_divs <- rstan::get_num_divergent(x$stanfit)
-    n_trees <- rstan::get_num_max_treedepth(x$stanfit)
-    bfmis <- rstan::get_bfmi(x$stanfit)
-    all_ok <- n_divs == 0L && n_trees == 0L && all(bfmis > 0.2)
+    diags <- get_diagnostics(x$stanfit)
+    n_divs <- diags$num_divergent
+    n_trees <- diags$num_max_treedepth
+    bfmis <- diags$ebfmi
+    all_ok <- all(n_divs == 0L) && all(n_trees == 0L) && all(bfmis > 0.2)
     cat("NUTS sampler diagnostics:\n")
     all_ok_str <- ifelse_(
       all_ok,
@@ -123,20 +124,20 @@ hmc_diagnostics.dynamitefit <- function(x, ...) {
     )
     cat(all_ok_str)
     div_str <- ifelse_(
-      n_divs > 0L,
+      any(n_divs > 0L),
       paste0(
-        "\n", n_divs, " out of ", n_draws, " iterations ended with a ",
+        "\n", sum(n_divs), " out of ", n_draws, " iterations ended with a ",
         "divergence. See Stan documentation for details.\n"
       ),
       ""
     )
     cat(div_str)
-    mt <- x$stanfit@stan_args[[1L]]$control$max_treedepth
+    mt <- get_max_treedepth(x$stanfit)
     mt <- ifelse_(is.null(mt), 10, mt)
     trees_str <- ifelse_(
-      n_trees > 0L,
+      any(n_trees > 0L),
       paste0(
-        "\n", n_trees, " out of ", n_draws, " saturated the maximum ",
+        "\n", sum(n_trees), " out of ", n_draws, " saturated the maximum ",
         "tree depth of ", mt, ". See Stan documentation for details.\n"
       ),
       ""

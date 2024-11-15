@@ -6,7 +6,7 @@
 #' For multichannel models, the log-likelihoods of all channels are combined.
 #' For models with groups, expected log predictive densities (ELPDs) are
 #' computed independently for each group, but the re-estimation of the model
-#' is triggered if pareto k values of any group exceeds the threshold.
+#' is triggered if Pareto k values of any group exceeds the threshold.
 #'
 #' @export
 #' @family diagnostics
@@ -18,9 +18,9 @@
 #'   the LFO computations to the console.
 #' @param k_threshold \[`numeric(1)`]\cr Threshold for the Pareto k estimate
 #'   triggering refit. Default is 0.7.
-#' @param ... Additional arguments passed to [rstan::sampling()] or
-#'   [cmdstanr::sample()], such as `chains` and `cores` (`parallel_chains` in
-#'   `cmdstanr`).
+#' @param ... Additional arguments passed to [rstan::sampling()] or the
+#'   `$sample()` method of the `CmdStanModel` object, such as `chains` and
+#'   `cores` (`parallel_chains` in `cmdstanr`).
 #' @return An `lfo` object which is a `list` with the following components:
 #'
 #'   * `ELPD`\cr Expected log predictive density estimate.
@@ -125,7 +125,7 @@ lfo.dynamitefit <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
     df = FALSE
   )$simulated
   # avoid NSE notes from R CMD check
-  loglik <- patterns <- .draw <- group <- groups <- time <- NULL
+  loglik <- patterns <- group <- groups <- time <- NULL
   # sum the log-likelihood over the channels and non-missing time points
   # for each group, time, and draw
   # drop those id&time pairs which contain NA

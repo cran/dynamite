@@ -2,7 +2,7 @@
 #'
 #' Applies multiple imputation using [mice::mice()] to the supplied `data`
 #' and fits a dynamic multivariate panel model to each imputed data set using
-#' [dynamite::dynamite()]. Posterior samples from each imputation run are
+#' [dynamite()]. Posterior samples from each imputation run are
 #' combined. When using wide format imputation, the long format `data` is
 #' automatically converted to a wide format before imputation to preserve the
 #' longitudinal structure, and then converted back to long format for
@@ -19,11 +19,12 @@
 #'   kept in the return object? The default is `FALSE`. If `TRUE`, the
 #'   imputations will be included in the `imputed` field in the return object
 #'   that is otherwise `NULL`.
-#' @param stan_csv_dir \[`character(1)`] A directory path to output the
+#' @param stan_csv_dir \[`character(1)`]\cr A directory path to output the
 #'   Stan .csv files when `backend` is `"cmdstanr"`. The files are saved here
 #'   via `$save_output_files()` to avoid garbage collection between sampling
 #'   runs with different imputed datasets.
 #' @export
+#'
 dynamice <- function(dformula, data, time, group = NULL,
                      priors = NULL, backend = "rstan",
                      verbose = TRUE, verbose_stan = FALSE,
@@ -97,7 +98,6 @@ dynamice <- function(dformula, data, time, group = NULL,
   e <- new.env()
   sf <- vector(mode = "list", length = m)
   filenames <- character(m)
-  model <- NULL
   tmp <- NULL
   for (i in seq_len(m)) {
     data_imputed <- ifelse_(
@@ -150,16 +150,9 @@ dynamice <- function(dformula, data, time, group = NULL,
   if (identical(backend, "rstan")) {
     stanfit <- rstan::sflist2stanfit(sf)
   } else {
-    stanfit <- rstan::read_stan_csv(filenames)
-    stanfit@stanmodel <- methods::new("stanmodel", model_code = tmp$model_code)
+    stanfit <- cmdstanr::as_cmdstan_fit(filenames, check_diagnostics = FALSE)
   }
-  # TODO does this work in this case?
-  n_draws <- ifelse_(
-    is.null(stanfit),
-    0L,
-    (stanfit@sim$n_save[1L] - stanfit@sim$warmup2[1L]) *
-      stanfit@sim$chains
-  )
+  n_draws <- ifelse_(is.null(stanfit), 0L, get_ndraws(stanfit))
   # TODO return object? How is this going to work with update?
   structure(
     list(
@@ -372,7 +365,6 @@ impute_wide <- function(dformula, data, time, group, mice_args) {
   if (length(value_vars) == 1L) {
     names(data_wide)[-1L] <- paste0(value_vars, "_", names(data_wide)[-1L])
   }
-  wide_vars <- names(data_wide)[-1L]
   mice_args$data <- data_wide
   n_time <- n_unique(data[[time]])
   pred_mat <- parse_predictors_wide(
@@ -393,7 +385,6 @@ impute_wide <- function(dformula, data, time, group, mice_args) {
 #' @param all_vars \[`character()`]\cr Names of all data variables.
 #' @noRd
 parse_predictors_long <- function(dformula, time_var, group_var, all_vars) {
-  resp <- get_responses(dformula)
   value_vars <- setdiff(all_vars, c(time_var, group_var))
   pred_vars <- c(value_vars, time_var, group_var)
   n_vars <- length(value_vars)

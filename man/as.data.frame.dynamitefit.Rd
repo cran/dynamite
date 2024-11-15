@@ -45,7 +45,7 @@ Ignored if the argument \code{parameters} is supplied.
 \item{times}{[\code{double()}]\cr Time point(s) to keep. If \code{NULL}
 (the default), all time points are kept.}
 
-\item{groups}{[\code{character()}] Group name(s) to keep. If \code{NULL}
+\item{groups}{[\code{character()}]\cr Group name(s) to keep. If \code{NULL}
 (the default), all groups are kept.}
 
 \item{summary}{[\code{logical(1)}]\cr If \code{TRUE}, returns posterior
@@ -66,7 +66,7 @@ from the output.}
 \value{
 A \code{tibble} containing either samples or summary statistics of the
 model parameters in a long format. For a wide format, see
-\code{\link[=as_draws]{as_draws()}}.
+\code{\link[=as_draws.dynamitefit]{as_draws.dynamitefit()}}.
 }
 \description{
 Provides a \code{data.frame} representation of the posterior samples of the model
@@ -85,6 +85,8 @@ Potential values for the \code{types} argument are:
 \item \code{delta}\cr Time-varying regression coefficients.
 \item \code{nu}\cr Group-level random effects.
 \item \code{lambda}\cr Factor loadings.
+\item \code{kappa}\cr Contribution of the latent factor loadings in the total
+variation.
 \item \code{psi}\cr Latent factors.
 \item \code{tau}\cr Standard deviations of the spline coefficients of \code{delta}.
 \item \code{tau_alpha}\cr Standard deviations of the spline coefficients of
@@ -99,8 +101,8 @@ Samples of the full correlation matrix can be extracted manually as
 factors. Samples of the full correlation matrix can be extracted
 manually as \code{rstan::extract(fit$stanfit, pars = "corr_matrix_psi")} if
 necessary.
-\item \code{sigma}\cr Standard deviations of gaussian responses.
-\item \code{corr}\cr Pairwise correlations of multivariate gaussian responses.
+\item \code{sigma}\cr Standard deviations of Gaussian responses.
+\item \code{corr}\cr Pairwise correlations of multivariate Gaussian responses.
 \item \code{phi}\cr Describes various distributional parameters, such as:
 \itemize{
 \item Dispersion parameter of the Negative Binomial distribution.
@@ -114,6 +116,8 @@ necessary.
 in case of \code{nonzero_lambda = FALSE}, mean of these are used to flip the
 sign of \code{psi} to avoid multimodality due to sign-switching, but
 \code{omega_psi} variables are not modified.
+\item \code{zeta}\cr Total variation of latent factors, i.e., the sum
+of \code{sigma_lambda} and \code{tau_psi}.
 }
 }
 \examples{

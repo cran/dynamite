@@ -1,4 +1,4 @@
-#' Predict Method for a Dynamite Model
+#' Predict Method for a \pkg{dynamite} Model
 #'
 #' Obtain counterfactual predictions for a `dynamitefit` object.
 #'
@@ -51,7 +51,7 @@
 #'     are encountered.
 #'   * `"bootstrap"` which will randomly draw from the posterior samples of
 #'     the random effects across all original levels.
-#'   * `"gaussian"` which will randomly draw from a gaussian
+#'   * `"gaussian"` which will randomly draw from a Gaussian
 #'     distribution using the posterior samples of the random effects
 #'     standard deviation (and correlation matrix if applicable).
 #'   * `"original"` which will randomly match each new level to one of
@@ -250,8 +250,8 @@ predict.dynamitefit <- function(object, newdata = NULL,
 #'   `"loglik"`.
 #' @noRd
 initialize_predict <- function(object, newdata, type, eval_type, funs, impute,
-                               new_levels, global_fixed, idx_draws, expand, df) {
-  n_draws <- length(idx_draws)
+                               new_levels, global_fixed, idx_draws, expand,
+                               df) {
   newdata_null <- is.null(newdata)
   newdata <- check_newdata(object, newdata)
   fixed <- as.integer(attr(object$dformulas$all, "max_lag"))
