@@ -1,7 +1,7 @@
 Package: dynamite
 Title: Bayesian Modeling and Causal Inference for Multivariate
         Longitudinal Data
-Version: 1.5.5
+Version: 1.5.6
 Authors@R: c(
     person("Santtu", "Tikka", email = "santtuth@gmail.com", 
            role = c("aut", "cre"), comment = c(ORCID = "0000-0003-4039-4342")),
@@ -37,11 +37,11 @@ LazyData: true
 LazyDataCompression: xz
 Additional_repositories: https://mc-stan.org/r-packages/
 NeedsCompilation: no
-Packaged: 2024-11-15 19:51:58 UTC; Santtu
+Packaged: 2025-04-07 06:09:02 UTC; santikka
 Author: Santtu Tikka [aut, cre] (<https://orcid.org/0000-0003-4039-4342>),
   Jouni Helske [aut] (<https://orcid.org/0000-0001-7130-793X>),
   Nicholas Clark [rev],
   Lucy D'Agostino McGowan [rev]
 Maintainer: Santtu Tikka <santtuth@gmail.com>
 Repository: CRAN
-Date/Publication: 2024-11-15 20:10:02 UTC
+Date/Publication: 2025-04-07 06:40:06 UTC
