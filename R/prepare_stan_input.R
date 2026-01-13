@@ -46,7 +46,7 @@ prepare_stan_input <- function(dformula, data, group_var, time_var,
     data[, .SD, .SDcols = resp],
     function(x) {
       cl <- class(x)
-      attr(cl, "levels") <- stan_name(levels(x), check_first = FALSE)
+      attr(cl, "levels") <- levels(x)
       cl
     }
   )
@@ -1262,7 +1262,7 @@ prepare_channel_student <- function(y, Y, channel, sampling,
 #'
 #' @param y \[`character(1)`]\cr Response variable the error is related to.
 #' @param family \[`character(1)`]\cr Family as a character string.
-#' @param call \[`call`]\cr Call to be passed to [stop_()].
+#' @param call \[`call`]\cr Call to be passed to `stop_`.
 #' @noRd
 abort_factor <- function(y, family, call) {
   stop_(

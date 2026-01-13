@@ -58,10 +58,11 @@ check_newdata <- function(object, newdata) {
 #' @param group_var \[`character(1)`,`NULL`]\cr Group variable name or `NULL`
 #'   if there is only one group.
 #' @param time_var \[`character(1)`]\cr Time index variable name.
+#' @param drop \[`logical(1)`]\cr Drop unused variables.
 #' @noRd
 parse_newdata <- function(dformulas, newdata, data, type, eval_type,
                           resp_stoch, categories, clear_names, new_levels,
-                          group_var, time_var) {
+                          group_var, time_var, drop) {
   if (!group_var %in% names(newdata)) {
     orig <- sort(data[[group_var]])[1L]
     data.table::set(x = newdata, j = group_var, value = orig)
@@ -102,12 +103,13 @@ parse_newdata <- function(dformulas, newdata, data, type, eval_type,
     identical(length(missing_resp), 0L),
     "Can't find response variable{?s} {.var {missing_resp}} in {.var newdata}."
   )
-  # check and add missing factor levels
+  # check and add missing factor levels and convert character columns
+  newdata_names <- names(newdata)
   factor_cols <- setdiff(
     names(which(vapply(data, is.factor, logical(1L)))),
     c(time_var, group_var)
   )
-  cols <- intersect(names(newdata), factor_cols)
+  cols <- intersect(newdata_names, factor_cols)
   for (i in cols) {
     l_orig <- levels(data[[i]])
     l_new <- levels(newdata[[i]])
@@ -123,6 +125,12 @@ parse_newdata <- function(dformulas, newdata, data, type, eval_type,
       newdata[[i]] <- factor(newdata[[i]], levels = l_orig)
     }
   }
+  character_cols <- names(which(vapply(newdata, is.character, logical(1L))))
+  cols <- intersect(names(data), character_cols)
+  for (i in cols) {
+    l_orig <- levels(data[[i]])
+    newdata[[i]] <- factor(newdata[[i]], levels = l_orig)
+  }
   data.table::setDT(newdata, key = c(group_var, time_var))
   newdata <- fill_time_predict(
     newdata,
@@ -132,7 +140,9 @@ parse_newdata <- function(dformulas, newdata, data, type, eval_type,
   )
   clear_names <- intersect(names(newdata), clear_names)
   newdata[, (clear_names) := NULL]
-  drop_unused(dformulas$all, newdata, group_var, time_var)
+  if (drop) {
+    drop_unused(dformulas$all, newdata, group_var, time_var)
+  }
   type <- ifelse_(eval_type %in% c("fitted", "loglik"), eval_type, type)
   if (identical(type, "loglik")) {
     cg <- attr(dformulas$stoch, "channel_groups")
@@ -275,7 +285,13 @@ fill_time_predict <- function(data, group_var, time_var, time_scale) {
     idx_group <- seq(group_bounds[i] + 1L, group_bounds[i + 1L])
     sub <- data[idx_group, ]
     time_duplicated[i] <- any(duplicated(sub[[time_var]]))
-    time_groups$has_missing[i] <- !identical(sub[[time_var]], full_time)
+    time_groups$has_missing[i] <- !isTRUE(
+      all.equal(
+        sub[[time_var]],
+        full_time,
+        check.attributes = FALSE
+      )
+    )
     time_groups$has_gaps[i] <- length(idx_group) !=
       (diff(range(sub[[time_var]])) + 1L) * time_scale
   }

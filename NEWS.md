@@ -1,3 +1,27 @@
+# dynamite 1.6.2
+
+  * The default Stan backend is now CmdStan via `cmdstanr`. If CmdStan or `cmdstanr` are not available, the package will default to `rstan`.
+  * The terms `fixed()`, `varying()`, and `random()` now check that their argument is a formula.
+  * Fixed an issue with `update()` using the wrong Stan backend in some instances.
+  * Added Journal of Statistical Software reference.
+
+# dynamite 1.6.1
+
+  * The `interval` argument of `dynamite()` is now coerced to `integer` for efficiency.
+  * Fixed an issue with the `interval` argument with lagged predictors that were not response variables.
+
+# dynamite 1.6.0
+
+  * Added a new argument `drop` for `predict()` and `fitted()` which can be set to `FALSE` to keep redundant columns of `newdata` in the output. The default value `TRUE` matches the previous behavior of removing all redundant columns.
+  * Added a new argument `interval` for controlling the time interval of observations in `dynamite()`. See the documentation for more details.
+  * Predictions are now only generated for observations with no missing predictors in `predict()` and `fitted()`. This change does not affect the simulation results, but warnings related to missing or non-finite values should no longer be unnecessarily generated during the simulation. 
+  * Disabled messages from `data.table` related to longer computations when using `dynamite()`, `dynamice()`, `predict()`, and `fitted()`.
+
+# dynamite 1.5.7
+
+  * Fixed an issue with `predict()` when the time index variable had attributes.
+  * Fixed an issue with `predict()` where `character` columns were not converted to factors. Both `predict()` and `fitted()` now ensure that `character` columns are converted to factors with the same levels as the corresponding variables had in the original data.
+
 # dynamite 1.5.6
 
   * Variable names and factor levels are now checked and modified if needed for compatibility with Stan. Previously only response variable names were checked. It is also now possible to have spaces in variable names by quoting them.

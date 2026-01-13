@@ -48,6 +48,7 @@ update.dynamitefit <- function(object, dformula = NULL, data = NULL,
      multiple imputation."
   )
   call <- object$call
+  call$backend <- object$backend # for backward compatibility
   if (!is.null(dformula)) {
     call$dformula <- dformula
     recompile <- TRUE
@@ -113,6 +114,7 @@ update_ <- function(object, data, refresh, ...) {
   call$group <- object$group_var
   call$priors <- get_priors(object)
   call$refresh <- refresh
+  call$backend <- object$backend
   call$debug <- NULL
   recompile <- NULL
   extras <- match.call(expand.dots = FALSE)$...

@@ -13,7 +13,7 @@ dynamite(
   time,
   group = NULL,
   priors = NULL,
-  backend = "rstan",
+  backend = "cmdstanr",
   verbose = TRUE,
   verbose_stan = FALSE,
   stanc_options = list("O0"),
@@ -21,6 +21,7 @@ dynamite(
   grainsize = NULL,
   custom_stan_model = NULL,
   debug = NULL,
+  interval = 1L,
   ...
 )
 
@@ -59,10 +60,10 @@ of the return object to get the column name of the new variable.}
 definitions. See \code{\link[=get_priors]{get_priors()}} and 'Details'.}
 
 \item{backend}{[\code{character(1)}]\cr Defines the backend interface to Stan,
-should be  either \code{"rstan"} (the default) or \code{"cmdstanr"}. Note that
+should be  either \code{"cmdstanr"} (the default) or \code{"rstan"}. Note that
 \code{cmdstanr} needs to be installed separately as it is not on CRAN. It also
 needs the actual \code{CmdStan} software. See \url{https://mc-stan.org/cmdstanr/}
-for details.}
+for details. Defaults to \code{"rstan"} if \code{"cmdstanr"} cannot be used.}
 
 \item{verbose}{[\code{logical(1)}]\cr All warnings and messages are suppressed
 if set to \code{FALSE}. Defaults to \code{TRUE}. Setting this to \code{FALSE} will also
@@ -104,6 +105,14 @@ added to the return object. Additionally, values \code{no_compile = TRUE} and
 and sampling steps respectively. This can be useful for debugging when
 combined with \code{model_code = TRUE}, which adds the Stan model code to the
 return object.}
+
+\item{interval}{[\code{integer(1)}]\cr This arguments acts as an offset for
+the evaluation of lagged observations when measurements are not available
+at every time point. For example, if measurements are only available at
+every second time point, setting \code{interval = 2} means that a lag of order
+\code{k} will instead use the observation at \code{2 * k} time units in the past.
+The default value is \code{1} meaning that there is a one-to-one correspondence
+between the lag order and the time scale. For expert users only.}
 
 \item{...}{For \code{dynamite()}, additional arguments to \code{\link[rstan:stanmodel-method-sampling]{rstan::sampling()}} or
 the \verb{$sample()} method of the \code{CmdStanModel} object
@@ -207,9 +216,9 @@ summary(gaussian_example_fit,
 
 }
 \references{
-Santtu Tikka and Jouni Helske (2024). \pkg{dynamite}: An \R Package for
-Dynamic Multivariate Panel Models. arXiv preprint,
-\url{doi:10.48550/arXiv.2302.01607}.
+Santtu Tikka and Jouni Helske (2025). \pkg{dynamite}: An \R Package for
+Dynamic Multivariate Panel Models. \emph{Journal of Statistical Software},
+115(5), 1-42, \url{doi:10.18637/jss.v115.i05}.
 
 Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
 from Panel Data with Dynamic Multivariate Panel Models.

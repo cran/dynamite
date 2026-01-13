@@ -17,6 +17,7 @@ dynamice(
   threads_per_chain = 1L,
   grainsize = NULL,
   custom_stan_model = NULL,
+  interval = 1L,
   debug = NULL,
   mice_args = list(),
   impute_format = "wide",
@@ -54,10 +55,10 @@ of the return object to get the column name of the new variable.}
 definitions. See \code{\link[=get_priors]{get_priors()}} and 'Details'.}
 
 \item{backend}{[\code{character(1)}]\cr Defines the backend interface to Stan,
-should be  either \code{"rstan"} (the default) or \code{"cmdstanr"}. Note that
+should be  either \code{"cmdstanr"} (the default) or \code{"rstan"}. Note that
 \code{cmdstanr} needs to be installed separately as it is not on CRAN. It also
 needs the actual \code{CmdStan} software. See \url{https://mc-stan.org/cmdstanr/}
-for details.}
+for details. Defaults to \code{"rstan"} if \code{"cmdstanr"} cannot be used.}
 
 \item{verbose}{[\code{logical(1)}]\cr All warnings and messages are suppressed
 if set to \code{FALSE}. Defaults to \code{TRUE}. Setting this to \code{FALSE} will also
@@ -91,6 +92,14 @@ details.}
 that either contains a customized Stan model code or a path to a \code{.stan}
 file that contains the code. Using this will override the generated model
 code. For expert users only.}
+
+\item{interval}{[\code{integer(1)}]\cr This arguments acts as an offset for
+the evaluation of lagged observations when measurements are not available
+at every time point. For example, if measurements are only available at
+every second time point, setting \code{interval = 2} means that a lag of order
+\code{k} will instead use the observation at \code{2 * k} time units in the past.
+The default value is \code{1} meaning that there is a one-to-one correspondence
+between the lag order and the time scale. For expert users only.}
 
 \item{debug}{[\code{list()}]\cr A named list of form \code{name = TRUE} indicating
 additional objects in the environment of the \code{dynamite} function which are

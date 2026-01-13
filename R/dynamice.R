@@ -30,7 +30,7 @@ dynamice <- function(dformula, data, time, group = NULL,
                      verbose = TRUE, verbose_stan = FALSE,
                      stanc_options = list("O0"),
                      threads_per_chain = 1L, grainsize = NULL,
-                     custom_stan_model = NULL, debug = NULL,
+                     custom_stan_model = NULL, interval = 1L, debug = NULL,
                      mice_args = list(), impute_format = "wide",
                      keep_imputed = FALSE, stan_csv_dir = tempdir(), ...) {
   stopifnot_(
@@ -49,17 +49,11 @@ dynamice <- function(dformula, data, time, group = NULL,
     threads_per_chain,
     grainsize,
     custom_stan_model,
+    interval,
     debug
   )
-  backend <- try(match.arg(backend, c("rstan", "cmdstanr")), silent = TRUE)
-  stopifnot_(
-    !inherits(backend, "try-error"),
-    "Argument {.arg backend} must be either {.val rstan} or {.val cmdstanr}."
-  )
-  impute_format <- try(
-    match.arg(impute_format, c("long", "wide")),
-    silent = TRUE
-  )
+  backend <- dynamite_backend(backend)
+  impute_format <- try_(match.arg(impute_format, c("long", "wide")))
   stopifnot_(
     !inherits(impute_format, "try-error"),
     "Argument {.arg impute_format} must be either {.val long} or {.val wide}."
@@ -72,6 +66,9 @@ dynamice <- function(dformula, data, time, group = NULL,
     any(is.na(data)),
     "Argument {.arg data} does not contain missing values."
   )
+  dt_progress_opt <- getOption("datatable.showProgress")
+  options(datatable.showProgress = FALSE)
+  interval <- as.integer(interval)
   data <- droplevels(data)
   data <- data.table::as.data.table(data)
   if (is.null(group)) {
@@ -113,6 +110,7 @@ dynamice <- function(dformula, data, time, group = NULL,
       priors = get_priors(dformula, data, time, group),
       backend = backend,
       verbose = FALSE,
+      interval = interval,
       debug = list(
         dots = TRUE,
         model = TRUE,
@@ -153,6 +151,7 @@ dynamice <- function(dformula, data, time, group = NULL,
     stanfit <- cmdstanr::as_cmdstan_fit(filenames, check_diagnostics = FALSE)
   }
   n_draws <- ifelse_(is.null(stanfit), 0L, get_ndraws(stanfit))
+  options(datatable.showProgress = dt_progress_opt)
   # TODO return object? How is this going to work with update?
   structure(
     list(
@@ -166,6 +165,7 @@ dynamice <- function(dformula, data, time, group = NULL,
       priors = priors,
       backend = backend,
       permutation = sample(n_draws),
+      interval = interval,
       imputed = onlyif(keep_imputed, imputed),
       call = tmp$call # TODO?
     ),

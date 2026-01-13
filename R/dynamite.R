@@ -40,10 +40,10 @@
 #' @param priors \[`data.frame`]\cr An optional data frame with prior
 #'   definitions. See [get_priors()] and 'Details'.
 #' @param backend \[`character(1)`]\cr Defines the backend interface to Stan,
-#'   should be  either `"rstan"` (the default) or `"cmdstanr"`. Note that
+#'   should be  either `"cmdstanr"` (the default) or `"rstan"`. Note that
 #'   `cmdstanr` needs to be installed separately as it is not on CRAN. It also
 #'   needs the actual `CmdStan` software. See <https://mc-stan.org/cmdstanr/>
-#'   for details.
+#'   for details. Defaults to `"rstan"` if `"cmdstanr"` cannot be used.
 #' @param verbose \[`logical(1)`]\cr All warnings and messages are suppressed
 #'   if set to `FALSE`. Defaults to `TRUE`. Setting this to `FALSE` will also
 #'   disable checks for perfect collinearity in the model matrix.
@@ -71,6 +71,13 @@
 #'   that either contains a customized Stan model code or a path to a `.stan`
 #'   file that contains the code. Using this will override the generated model
 #'   code. For expert users only.
+#' @param interval \[`integer(1)`]\cr This arguments acts as an offset for
+#'   the evaluation of lagged observations when measurements are not available
+#'   at every time point. For example, if measurements are only available at
+#'   every second time point, setting `interval = 2` means that a lag of order
+#'   `k` will instead use the observation at `2 * k` time units in the past.
+#'   The default value is `1` meaning that there is a one-to-one correspondence
+#'   between the lag order and the time scale. For expert users only.
 #' @param debug \[`list()`]\cr A named list of form `name = TRUE` indicating
 #'   additional objects in the environment of the `dynamite` function which are
 #'   added to the return object. Additionally, values `no_compile = TRUE` and
@@ -135,9 +142,9 @@
 #'   based on Stan, the  scalability of the package depends directly on the
 #'   scalability of Stan.
 #' @references
-#' Santtu Tikka and Jouni Helske (2024). \pkg{dynamite}: An \R Package for
-#' Dynamic Multivariate Panel Models. arXiv preprint,
-#' <doi:10.48550/arXiv.2302.01607>.
+#' Santtu Tikka and Jouni Helske (2025). \pkg{dynamite}: An \R Package for
+#' Dynamic Multivariate Panel Models. *Journal of Statistical Software*,
+#' 115(5), 1-42, <doi:10.18637/jss.v115.i05>.
 #'
 #' Jouni Helske and Santtu Tikka (2022). Estimating Causal Effects
 #' from Panel Data with Dynamic Multivariate Panel Models.
@@ -163,11 +170,12 @@
 #' }
 #'
 dynamite <- function(dformula, data, time, group = NULL,
-                     priors = NULL, backend = "rstan",
+                     priors = NULL, backend = "cmdstanr",
                      verbose = TRUE, verbose_stan = FALSE,
                      stanc_options = list("O0"),
                      threads_per_chain = 1L, grainsize = NULL,
-                     custom_stan_model = NULL, debug = NULL, ...) {
+                     custom_stan_model = NULL, debug = NULL, interval = 1L,
+                     ...) {
   dynamite_check(
     dformula,
     data,
@@ -180,6 +188,7 @@ dynamite <- function(dformula, data, time, group = NULL,
     threads_per_chain,
     grainsize,
     custom_stan_model,
+    interval,
     debug
   )
   custom_stan_model <- ifelse_(
@@ -187,11 +196,7 @@ dynamite <- function(dformula, data, time, group = NULL,
     paste(readLines(custom_stan_model), collapse = "\n"),
     custom_stan_model
   )
-  backend <- try(match.arg(backend, c("rstan", "cmdstanr")), silent = TRUE)
-  stopifnot_(
-    !inherits(backend, "try-error"),
-    "Argument {.arg backend} must be either {.val rstan} or {.val cmdstanr}."
-  )
+  backend <- dynamite_backend(backend)
   if (is.null(group)) {
     group <- ".group"
     data_names <- names(data)
@@ -206,11 +211,14 @@ dynamite <- function(dformula, data, time, group = NULL,
     deparse1(d),
     "NULL"
   )
+  dt_progress_opt <- getOption("datatable.showProgress")
+  options(datatable.showProgress = FALSE)
+  interval <- as.integer(interval)
   data <- parse_data(dformula, data, group, time, verbose)
   dformula <- parse_past(dformula, data, group, time)
   dformulas <- parse_lags(dformula, data, group, time, verbose)
-  evaluate_deterministic(dformulas, data, group, time)
-  dformulas <- parse_components(dformulas, data, group, time)
+  evaluate_deterministic(dformulas, data, group, time, interval)
+  dformulas <- parse_components(dformulas, data, group, time, interval)
   stan_out <- dynamite_stan(
     dformulas,
     data,
@@ -225,6 +233,7 @@ dynamite <- function(dformula, data, time, group = NULL,
     threads_per_chain,
     grainsize,
     custom_stan_model,
+    interval,
     debug,
     ...
   )
@@ -257,6 +266,7 @@ dynamite <- function(dformula, data, time, group = NULL,
       priors = rbindlist_(stan_input$priors),
       backend = backend,
       permutation = sample(n_draws),
+      interval = interval,
       call = dynamite_call
     ),
     class = "dynamitefit"
@@ -264,10 +274,48 @@ dynamite <- function(dformula, data, time, group = NULL,
   # Adds any object in the environment of this function to the return object
   # if its name is included in the debug argument.
   for (opt in setdiff(names(debug), names(out))) {
-    got <- try(get(x = opt), silent = TRUE)
+    got <- try_(get(x = opt))
     out[[opt]] <- onlyif(!inherits(got, "try-error"), got)
   }
+  options(datatable.showProgress = dt_progress_opt)
   out
+}
+
+#' Check backend capabilities for `dynamite`
+#'
+#' @param backend Either `"cmdstanr"` or `"rstan"`.
+#' @noRd
+dynamite_backend <- function(backend) {
+  backend <- try_(match.arg(backend, c("cmdstanr", "rstan")))
+  stopifnot_(
+    !inherits(backend, "try-error"),
+    "Argument {.arg backend} must be either {.val cmdstanr} or {.val rstan}."
+  )
+  if (backend == "rstan") {
+    return(backend)
+  }
+  if (requireNamespace("cmdstanr", quietly = TRUE)) {
+    cmdstan_path <- try_(cmdstanr::cmdstan_path())
+    if (inherits(cmdstan_path, "try-error")) {
+      message_(
+        c(
+          "CmdStan path has not been set yet. See ?set_cmdstan_path.",
+          `i` = "Switching to {.pkg rstan} backend."
+        )
+      )
+      backend <- "rstan"
+    }
+  } else {
+    message_(
+      c(
+        "Please install the {.pkg cmdstanr}
+         package to use the CmdStan backend.",
+        `i` = "Switching to {.pkg rstan} backend."
+      )
+    )
+    backend <- "rstan"
+  }
+  backend
 }
 
 #' Check `dynamite` Arguments
@@ -277,7 +325,7 @@ dynamite <- function(dformula, data, time, group = NULL,
 dynamite_check <- function(dformula, data, time, group, priors, verbose,
                            verbose_stan, stanc_options,
                            threads_per_chain, grainsize,
-                           custom_stan_model, debug) {
+                           custom_stan_model, interval, debug) {
   stopifnot_(
     !missing(dformula),
     "Argument {.arg dformula} is missing."
@@ -349,6 +397,10 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
     "Argument {.arg grainsize} must be a single positive integer or
     {.code NULL}."
   )
+  stopifnot_(
+    checkmate::test_int(x = interval, lower = 1L),
+    "Argument {.arg interval} must be a single positive integer."
+  )
 }
 
 #' Prepare Data for Stan and Construct a Stan Model for `dynamite`
@@ -360,14 +412,14 @@ dynamite_check <- function(dformula, data, time, group, priors, verbose,
 dynamite_stan <- function(dformulas, data, data_name, group, time,
                           priors, backend, verbose, verbose_stan,
                           stanc_options, threads_per_chain, grainsize,
-                          custom_stan_model, debug, ...) {
+                          custom_stan_model, interval, debug, ...) {
   stan_input <- prepare_stan_input(
     dformulas$stoch,
     data,
     group,
     time,
     priors,
-    fixed = attr(dformulas$all, "max_lag"),
+    fixed = attr(dformulas$all, "max_lag") * interval,
     verbose
   )
   grainsize <- ifelse_(
@@ -492,6 +544,9 @@ dynamite_sampling <- function(sampling, backend, model_code, model,
       })
     } else {
       e$model <- model
+      if (is.null(dots$show_exceptions)) {
+        dots$show_exceptions <- FALSE
+      }
       e$args <- c(
         list(data = sampling_vars),
         dots,
@@ -932,9 +987,9 @@ parse_past <- function(dformula, data, group_var, time_var) {
       y <- dformula[[i]]$response
       cl <- dformula[[i]]$specials$past
       if (identical(typeof(cl), "language")) {
-        past_eval <- try(eval(cl), silent = TRUE)
+        past_eval <- try_(eval(cl))
         if (inherits(past_eval, "try-error")) {
-          past_eval <- try(data[, cl, env = list(cl = cl)], silent = TRUE)
+          past_eval <- try_(data[, cl, env = list(cl = cl)])
           stopifnot_(
             !inherits(past_eval, "try-error"),
             c(
@@ -970,14 +1025,14 @@ parse_past <- function(dformula, data, group_var, time_var) {
 #' @inheritParams parse_data
 #' @param dformulas \[`list()`]\cr Output of `parse_lags`.
 #' @noRd
-parse_components <- function(dformulas, data, group_var, time_var) {
+parse_components <- function(dformulas, data, group_var, time_var, interval) {
   fixed <- attr(dformulas$all, "max_lag")
   resp <- get_responses(dformulas$stoch)
   families <- unlist(get_families(dformulas$stoch))
   attr(dformulas$stoch, "splines") <- parse_splines(
     spline_def = attr(dformulas$stoch, "splines"),
     resp = resp,
-    times = seq.int(fixed + 1L, n_unique(data[[time_var]]))
+    times = seq.int(fixed * interval + 1L, n_unique(data[[time_var]]))
   )
   M <- count_random_effects(dformulas$stoch, data)
   stopifnot_(

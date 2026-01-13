@@ -105,7 +105,6 @@ lfo.dynamitefit <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
     message_("Estimating model with {L} time points.")
   }
   fit <- update_(x, data = d, refresh = 0, ...)
-
   idx_draws <- seq.int(1, ndraws(fit))
   n_draws <- length(idx_draws)
   # would be faster to use only data
@@ -122,7 +121,8 @@ lfo.dynamitefit <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
     global_fixed = FALSE,
     idx_draws,
     expand = FALSE,
-    df = FALSE
+    df = FALSE,
+    drop = TRUE
   )$simulated
   # avoid NSE notes from R CMD check
   loglik <- patterns <- group <- groups <- time <- NULL
@@ -219,7 +219,8 @@ lfo.dynamitefit <- function(x, L, verbose = TRUE, k_threshold = 0.7, ...) {
           global_fixed = FALSE,
           idx_draws,
           expand = FALSE,
-          df = FALSE
+          df = FALSE,
+          drop = TRUE
         )$simulated
         lls <- out[
           time > tp[L],
