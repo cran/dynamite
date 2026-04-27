@@ -1,3 +1,7 @@
+# dynamite 1.6.3
+
+  * Fixed an issue related to `Matrix` package dependency.
+
 # dynamite 1.6.2
 
   * The default Stan backend is now CmdStan via `cmdstanr`. If CmdStan or `cmdstanr` are not available, the package will default to `rstan`.
